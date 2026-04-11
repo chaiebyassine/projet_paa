@@ -1,22 +1,13 @@
 #include <iostream>
-#include <vector>
-#include "src/model/Position.h"
-#include "src/model/Case.h"
-#include "src/model/Plateau.h"
-#include "src/model/Couleur.h"
-#include "src/model/Tour.h"
+#include "src/model/JoueurHumain.h"
+#include "src/model/JoueurIA.h"
 
 int main() {
-    Plateau plateau(8, 8);
-
-    Tour tour(Position(3, 3), Couleur::BLANC, nullptr);
-
-    std::vector<Position> mouvements = tour.mouvementsPossibles(plateau);
-
-    std::cout << "Mouvements possibles de la tour :" << std::endl;
-    for (const Position& p : mouvements) {
-        std::cout << "(" << p.getLigne() << ", " << p.getColonne() << ")" << std::endl;
-    }
-
+    JoueurHumain j1("Alice", Couleur::BLANC);
+    JoueurIA j2("Bot", Couleur::NOIR, 3);
+    JoueurHumain j3("Bob", Couleur::ROUGE);
+    j1.jouer();
+    j2.jouer();
+    j3.jouer();
     return 0;
 }
