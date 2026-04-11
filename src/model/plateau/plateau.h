@@ -2,7 +2,7 @@
 
 #include <vector>
 #include "case.h"
-#include "position.h"
+#include "../base/position.h"
 
 class Plateau {
 private:

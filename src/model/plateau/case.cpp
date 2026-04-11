@@ -1,5 +1,5 @@
 #include "Case.h"
-#include "Piece.h"
+#include "../piece/Piece.h"
 Case::Case(Position pos) : position(pos), piece(nullptr) {}
 
 bool Case::estOccupee() const {

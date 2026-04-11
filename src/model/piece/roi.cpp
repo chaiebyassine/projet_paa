@@ -1,6 +1,6 @@
 #include "Roi.h"
-#include "Plateau.h"
-#include "Case.h"
+#include "../plateau/Plateau.h"
+#include "../plateau/Case.h"
 #include "Piece.h"
 
 Roi::Roi(const Position& pos, Couleur coul, Joueur* j)

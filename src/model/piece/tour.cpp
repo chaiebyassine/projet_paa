@@ -1,27 +1,23 @@
-#include "Reine.h"
-#include "Plateau.h"
-#include "Case.h"
+#include "Tour.h"
+#include "../plateau/Plateau.h"
+#include "../plateau/Case.h"
 #include "Piece.h"
 
-Reine::Reine(const Position& pos, Couleur coul, Joueur* j)
+Tour::Tour(const Position& pos, Couleur coul, Joueur* j)
     : Piece(pos, coul, j) {
 }
 
-std::vector<Position> Reine::mouvementsPossibles(const Plateau& plateau) const {
+std::vector<Position> Tour::mouvementsPossibles(const Plateau& plateau) const {
     std::vector<Position> mouvements;
 
-    const int directions[8][2] = {
-        {-1, 0},  // haut
-        {1, 0},   // bas
-        {0, -1},  // gauche
-        {0, 1},   // droite
-        {-1, -1}, // haut-gauche
-        {-1, 1},  // haut-droite
-        {1, -1},  // bas-gauche
-        {1, 1}    // bas-droite
+    const int directions[4][2] = {
+        {-1, 0}, // haut
+        {1, 0},  // bas
+        {0, -1}, // gauche
+        {0, 1}   // droite
     };
 
-    for (int d = 0; d < 8; ++d) {
+    for (int d = 0; d < 4; ++d) {
         int dl = directions[d][0];
         int dc = directions[d][1];
 

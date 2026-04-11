@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include "Position.h"
-#include "Couleur.h"
+#include "../base/Position.h"
+#include "../base/Couleur.h"
 
 class Plateau;
 class Joueur;

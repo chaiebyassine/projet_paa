@@ -1,6 +1,6 @@
 #include "Cavalier.h"
-#include "Plateau.h"
-#include "Case.h"
+#include "../plateau/Plateau.h"
+#include "../plateau/Case.h"
 #include "Piece.h"
 
 Cavalier::Cavalier(const Position& pos, Couleur coul, Joueur* j)

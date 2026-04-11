@@ -1,7 +1,7 @@
 #pragma once
 
-#include "position.h"
-#include "Couleur.h"
+#include "../base/position.h"
+#include "../base/couleur.h"
 class Piece; // déclaration anticipée
 
 class Case {

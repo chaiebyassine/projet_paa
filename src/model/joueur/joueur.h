@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "Couleur.h"
+#include "../base/Couleur.h"
 
 class Piece;
 

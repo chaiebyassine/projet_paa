@@ -1,5 +1,5 @@
 #include "plateau.h"
-#include "Piece.h"
+#include "../piece/Piece.h"
 Plateau::Plateau(int lignes, int colonnes)
     : nbLignes(lignes), nbColonnes(colonnes) {
     for (int i = 0; i < nbLignes; ++i) {
