@@ -1,5 +1,5 @@
 #include "plateau.h"
-
+#include "Piece.h"
 Plateau::Plateau(int lignes, int colonnes)
     : nbLignes(lignes), nbColonnes(colonnes) {
     for (int i = 0; i < nbLignes; ++i) {
@@ -55,8 +55,10 @@ bool Plateau::deplacerPiece(const Position& depart, const Position& arrivee) {
     }
 
     Piece* piece = caseDepart->getPiece();
-    caseArrivee->placerPiece(piece);
-    caseDepart->vider();
+piece->setPosition(arrivee);
+piece->setADejaBouge(true);
+caseArrivee->placerPiece(piece);
+caseDepart->vider();
 
     return true;
 }
