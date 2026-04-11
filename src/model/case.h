@@ -1,7 +1,7 @@
 #pragma once
 
 #include "position.h"
-
+#include "Couleur.h"
 class Piece; // déclaration anticipée
 
 class Case {
@@ -19,4 +19,5 @@ public:
 
     Piece* getPiece() const;
     Position getPosition() const;
+    bool contientPieceAdverse(Couleur couleur) const;
 };

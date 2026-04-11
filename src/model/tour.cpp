@@ -1,5 +1,7 @@
 #include "Tour.h"
 #include "Plateau.h"
+#include "Case.h"
+#include "Piece.h"
 
 Tour::Tour(const Position& pos, Couleur coul, Joueur* j)
     : Piece(pos, coul, j) {
@@ -8,15 +10,45 @@ Tour::Tour(const Position& pos, Couleur coul, Joueur* j)
 std::vector<Position> Tour::mouvementsPossibles(const Plateau& plateau) const {
     std::vector<Position> mouvements;
 
-    Position haut(position.getLigne() - 1, position.getColonne());
-    Position bas(position.getLigne() + 1, position.getColonne());
-    Position gauche(position.getLigne(), position.getColonne() - 1);
-    Position droite(position.getLigne(), position.getColonne() + 1);
+    const int directions[4][2] = {
+        {-1, 0}, // haut
+        {1, 0},  // bas
+        {0, -1}, // gauche
+        {0, 1}   // droite
+    };
 
-    if (plateau.estCaseValide(haut)) mouvements.push_back(haut);
-    if (plateau.estCaseValide(bas)) mouvements.push_back(bas);
-    if (plateau.estCaseValide(gauche)) mouvements.push_back(gauche);
-    if (plateau.estCaseValide(droite)) mouvements.push_back(droite);
+    for (int d = 0; d < 4; ++d) {
+        int dl = directions[d][0];
+        int dc = directions[d][1];
+
+        int ligne = position.getLigne() + dl;
+        int colonne = position.getColonne() + dc;
+
+        while (true) {
+            Position p(ligne, colonne);
+
+            if (!plateau.estCaseValide(p)) {
+                break;
+            }
+
+            const Case* c = plateau.obtenirCase(p);
+            if (c == nullptr) {
+                break;
+            }
+
+            if (!c->estOccupee()) {
+                mouvements.push_back(p);
+            } else {
+                if (c->contientPieceAdverse(couleur)) {
+                    mouvements.push_back(p);
+                }
+                break;
+            }
+
+            ligne += dl;
+            colonne += dc;
+        }
+    }
 
     return mouvements;
 }

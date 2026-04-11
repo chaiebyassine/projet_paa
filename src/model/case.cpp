@@ -1,5 +1,5 @@
 #include "Case.h"
-
+#include "Piece.h"
 Case::Case(Position pos) : position(pos), piece(nullptr) {}
 
 bool Case::estOccupee() const {
@@ -20,4 +20,7 @@ Piece* Case::getPiece() const {
 
 Position Case::getPosition() const {
     return position;
+}
+bool Case::contientPieceAdverse(Couleur couleur) const {
+    return piece != nullptr && piece->getCouleur() != couleur;
 }
