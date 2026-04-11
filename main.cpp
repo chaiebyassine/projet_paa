@@ -1,30 +1,29 @@
 #include <iostream>
-#include <vector>
-#include "src/model/plateau/Plateau.h"
-#include "src/model/piece/Pion.h"
-#include "src/model/piece/Tour.h"
+#include "src/model/Jeu.h"
 #include "src/model/joueur/JoueurHumain.h"
+#include "src/model/piece/Tour.h"
 
 int main() {
-    Plateau plateau(8, 8);
+    Jeu jeu(8, 8);
 
     JoueurHumain j1("Joueur1", Couleur::BLANC);
     JoueurHumain j2("Joueur2", Couleur::NOIR);
+    JoueurHumain j3("Joueur3", Couleur::ROUGE);
 
-    Pion pionBlanc(Position(6, 3), Couleur::BLANC, &j1);
-    Tour pieceAdverse(Position(5, 4), Couleur::NOIR, &j2);
-    Tour pieceAlliee(Position(5, 2), Couleur::BLANC, &j1);
+    jeu.ajouterJoueur(&j1);
+    jeu.ajouterJoueur(&j2);
+    jeu.ajouterJoueur(&j3);
 
-    plateau.placerPiece(Position(6, 3), &pionBlanc);
-    plateau.placerPiece(Position(5, 4), &pieceAdverse);
-    plateau.placerPiece(Position(5, 2), &pieceAlliee);
+    Tour tourBlanche(Position(3, 3), Couleur::BLANC, &j1);
 
-    std::vector<Position> mouvements = pionBlanc.mouvementsPossibles(plateau);
+    jeu.getPlateau().placerPiece(Position(3, 3), &tourBlanche);
 
-    std::cout << "Mouvements possibles du pion blanc :" << std::endl;
-    for (const Position& p : mouvements) {
-        std::cout << "(" << p.getLigne() << ", " << p.getColonne() << ")" << std::endl;
-    }
+    std::cout << "Joueur courant : " << jeu.getJoueurCourant()->getNom() << std::endl;
+
+    bool ok = jeu.deplacerPiece(Position(3, 3), Position(3, 6));
+
+    std::cout << "Deplacement reussi ? " << ok << std::endl;
+    std::cout << "Nouveau joueur courant : " << jeu.getJoueurCourant()->getNom() << std::endl;
 
     return 0;
 }
