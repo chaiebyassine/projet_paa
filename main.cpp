@@ -72,6 +72,8 @@ int main() {
     std::cout << "Pieces joueur 2 : " << j2.getPieces().size() << std::endl;
     afficherInfosCase(jeu, Position(0, 0));
     afficherInfosCase(jeu, Position(0, 3));
-
+std::cout << "Joueur1 en echec ? " << jeu.estEnEchec(&j1) << std::endl;
+std::cout << "Joueur2 en echec ? " << jeu.estEnEchec(&j2) << std::endl;
+std::cout << "Joueur3 en echec ? " << jeu.estEnEchec(&j3) << std::endl;
     return 0;
 }

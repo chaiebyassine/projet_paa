@@ -136,4 +136,45 @@ void Jeu::initialiserPieces() {
 
     plateau.placerPiece(Position(0, 7), tour3);
     plateau.placerPiece(Position(0, 6), roi3);
+    
+}
+Piece* trouverRoi(Joueur* joueur) {
+    for (Piece* p : joueur->getPieces()) {
+        // on suppose que le roi est identifié par son type
+        if (dynamic_cast<Roi*>(p) != nullptr) {
+            return p;
+        }
+    }
+    return nullptr;
+}
+bool Jeu::estEnEchec(Joueur* joueur) {
+
+    Piece* roi = trouverRoi(joueur);
+
+    if (roi == nullptr) {
+        return false;
+    }
+
+    Position positionRoi = roi->getPosition();
+
+    // parcourir tous les autres joueurs
+    for (Joueur* j : joueurs) {
+
+        if (j == joueur) continue;
+
+        // parcourir leurs pièces
+        for (Piece* p : j->getPieces()) {
+
+            std::vector<Position> mouvements = p->mouvementsPossibles(plateau);
+
+            for (const Position& pos : mouvements) {
+                if (pos.getLigne() == positionRoi.getLigne() &&
+                    pos.getColonne() == positionRoi.getColonne()) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
