@@ -20,7 +20,7 @@ public:
     std::string getNom() const;
     Couleur getCouleur() const;
     bool getEstElimine() const;
-
+void retirerPiece(Piece* p);
     void ajouterPiece(Piece* p);
     std::vector<Piece*> getPieces() const;
 

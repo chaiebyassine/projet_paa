@@ -78,6 +78,10 @@ bool Jeu::deplacerPiece(const Position& depart, const Position& arrivee) {
         if (pieceCapturee->getCouleur() == piece->getCouleur()) {
             return false;
         }
+        // Retirer la pièce capturée du joueur adverse
+        Joueur* joueurAdverse = pieceCapturee->getJoueur();
+        joueurAdverse->retirerPiece(pieceCapturee);
+        caseArrivee->vider();
     }
 
     plateau.deplacerPiece(depart, arrivee);
@@ -89,6 +93,7 @@ bool Jeu::deplacerPiece(const Position& depart, const Position& arrivee) {
 void Jeu::demarrerPartie() {
     etatPartie = EtatPartie::EN_COURS;
     indexJoueurCourant = 0;
+    initialiserPieces();
 }
 // Initialise les pièces pour les 3 joueurs 
 void Jeu::initialiserPieces() {

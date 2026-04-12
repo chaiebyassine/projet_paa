@@ -23,3 +23,11 @@ void Joueur::ajouterPiece(Piece* p) {
 std::vector<Piece*> Joueur::getPieces() const {
     return pieces;
 }
+void Joueur::retirerPiece(Piece* p) {
+    for (auto it = pieces.begin(); it != pieces.end(); ++it) {
+        if (*it == p) {
+            pieces.erase(it);
+            break;
+        }
+    }
+}
