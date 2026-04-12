@@ -75,5 +75,7 @@ int main() {
 std::cout << "Joueur1 en echec ? " << jeu.estEnEchec(&j1) << std::endl;
 std::cout << "Joueur2 en echec ? " << jeu.estEnEchec(&j2) << std::endl;
 std::cout << "Joueur3 en echec ? " << jeu.estEnEchec(&j3) << std::endl;
+std::cout << "Joueur1 en echec ? " << jeu.estEnEchec(&j1) << std::endl;
+std::cout << "Joueur1 est mat ? " << jeu.estMat(&j1) << std::endl;
     return 0;
 }

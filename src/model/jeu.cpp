@@ -178,3 +178,54 @@ bool Jeu::estEnEchec(Joueur* joueur) {
 
     return false;
 }
+bool Jeu::estMat(Joueur* joueur) {
+    // Si le joueur n'est pas en échec, il ne peut pas être mat
+    if (!estEnEchec(joueur)) {
+        return false;
+    }
+
+    // Parcourir toutes les pièces du joueur
+    for (Piece* piece : joueur->getPieces()) {
+        std::vector<Position> mouvements = piece->mouvementsPossibles(plateau);
+
+        for (const Position& arrivee : mouvements) {
+            Position depart = piece->getPosition();
+
+            Case* caseDepart = plateau.obtenirCase(depart);
+            Case* caseArrivee = plateau.obtenirCase(arrivee);
+
+            if (caseDepart == nullptr || caseArrivee == nullptr) {
+                continue;
+            }
+
+            // Sauvegarder l'état avant simulation
+            Piece* pieceCapturee = caseArrivee->getPiece();
+            bool arriveeOccupee = caseArrivee->estOccupee();
+
+            // Simuler le coup
+            caseDepart->vider();
+            caseArrivee->placerPiece(piece);
+            piece->setPosition(arrivee);
+
+            // Vérifier si le joueur est encore en échec
+            bool encoreEnEchec = estEnEchec(joueur);
+
+            // Annuler la simulation
+            caseArrivee->vider();
+            caseDepart->placerPiece(piece);
+            piece->setPosition(depart);
+
+            if (arriveeOccupee) {
+                caseArrivee->placerPiece(pieceCapturee);
+            }
+
+            // Si un coup permet de sortir de l'échec, ce n'est pas mat
+            if (!encoreEnEchec) {
+                return false;
+            }
+        }
+    }
+
+    // Aucun coup ne permet de sortir de l'échec
+    return true;
+}

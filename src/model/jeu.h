@@ -24,9 +24,9 @@ public:
 
     Joueur* getJoueurCourant() const;
     EtatPartie getEtatPartie() const;
-bool estEnEchec(Joueur* joueur);
+    bool estEnEchec(Joueur* joueur);
     void changerJoueur();
     bool deplacerPiece(const Position& depart, const Position& arrivee);
-
+    bool estMat(Joueur* joueur);
     void demarrerPartie();
 };
