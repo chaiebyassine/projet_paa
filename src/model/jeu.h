@@ -15,6 +15,7 @@ private:
 
 public:
     Jeu(int lignes, int colonnes);
+    void initialiserPieces();
 
     void ajouterJoueur(Joueur* joueur);
 

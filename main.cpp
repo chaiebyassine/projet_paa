@@ -1,7 +1,6 @@
 #include <iostream>
-#include "src/model/Jeu.h"
-#include "src/model/joueur/JoueurHumain.h"
-#include "src/model/piece/Tour.h"
+#include "src/model/jeu.h"
+#include "src/model/joueur/joueurHumain.h"
 
 int main() {
     Jeu jeu(8, 8);
@@ -14,16 +13,16 @@ int main() {
     jeu.ajouterJoueur(&j2);
     jeu.ajouterJoueur(&j3);
 
-    Tour tourBlanche(Position(3, 3), Couleur::BLANC, &j1);
+    
+    jeu.demarrerPartie();
+Case* c1 = jeu.getPlateau().obtenirCase(Position(0, 0));
+Case* c2 = jeu.getPlateau().obtenirCase(Position(0, 1));
+Case* c3 = jeu.getPlateau().obtenirCase(Position(7, 7));
 
-    jeu.getPlateau().placerPiece(Position(3, 3), &tourBlanche);
-
+std::cout << "Case (0,0) occupee ? " << c1->estOccupee() << std::endl;
+std::cout << "Case (0,1) occupee ? " << c2->estOccupee() << std::endl;
+std::cout << "Case (7,7) occupee ? " << c3->estOccupee() << std::endl;
     std::cout << "Joueur courant : " << jeu.getJoueurCourant()->getNom() << std::endl;
-
-    bool ok = jeu.deplacerPiece(Position(3, 3), Position(3, 6));
-
-    std::cout << "Deplacement reussi ? " << ok << std::endl;
-    std::cout << "Nouveau joueur courant : " << jeu.getJoueurCourant()->getNom() << std::endl;
 
     return 0;
 }
