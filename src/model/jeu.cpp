@@ -5,6 +5,7 @@
 #include "piece/Roi.h"
 #include "joueur/Joueur.h"
 
+
 // Constructeur : crée un jeu avec un plateau de taille donnée
 // Le joueur courant est le premier (index 0) et la partie est en cours
 Jeu::Jeu(int lignes, int colonnes)
@@ -12,6 +13,7 @@ Jeu::Jeu(int lignes, int colonnes)
 }
 
 // Ajoute un joueur au jeu (maximum 3 joueurs autorisés)
+void Jeu::ajouterJoueur(Joueur* joueur) {
     if (joueurs.size() < 3) {
         joueurs.push_back(joueur);
     }
