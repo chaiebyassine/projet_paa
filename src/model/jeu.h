@@ -5,20 +5,22 @@
 #include "etatpartie.h"
 #include "joueur/Joueur.h"
 #include "base/position.h"
-
+#include <vector>
+class CommandeCoup;
 class Jeu {
 private:
     Plateau plateau;
     std::vector<Joueur*> joueurs;
     int indexJoueurCourant;
     EtatPartie etatPartie;
-
+std::vector<CommandeCoup*> historiqueCoups;
 public:
     Jeu(int lignes, int colonnes);
     void initialiserPieces();
 
     void ajouterJoueur(Joueur* joueur);
-
+void ajouterCommandeHistorique(CommandeCoup* commande);
+const std::vector<CommandeCoup*>& getHistoriqueCoups() const;
     Plateau& getPlateau();
     const Plateau& getPlateau() const;
 

@@ -3,6 +3,7 @@
 #include "piece/Piece.h"
 #include "piece/Tour.h"
 #include "piece/Roi.h"
+#include "joueur/Joueur.h"
 Jeu::Jeu(int lignes, int colonnes)
     : plateau(lignes, colonnes), indexJoueurCourant(0), etatPartie(EtatPartie::EN_COURS) {
 }
@@ -228,4 +229,11 @@ bool Jeu::estMat(Joueur* joueur) {
 
     // Aucun coup ne permet de sortir de l'échec
     return true;
+}
+void Jeu::ajouterCommandeHistorique(CommandeCoup* commande) {
+    historiqueCoups.push_back(commande);
+}
+
+const std::vector<CommandeCoup*>& Jeu::getHistoriqueCoups() const {
+    return historiqueCoups;
 }
