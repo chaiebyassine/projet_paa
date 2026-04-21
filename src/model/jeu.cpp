@@ -7,6 +7,14 @@
 #include "piece/Piece.h"
 #include "piece/Tour.h"
 #include "piece/Roi.h"
+#include "piece/Pion.h"
+#include "piece/Cavalier.h"
+#include "piece/Fou.h"
+#include "piece/Reine.h"
+#include "piece/Pion.h"
+#include "piece/Cavalier.h"
+#include "piece/Fou.h"
+#include "piece/Reine.h"
 #include "joueur/Joueur.h"
 
 
@@ -122,49 +130,91 @@ void Jeu::demarrerPartie() {
     indexJoueurCourant = 0;
     initialiserPieces();
 }
-// Initialise les pièces sur le plateau pour les 3 joueurs
-// Chaque joueur reçoit une tour et un roi (positions temporaires pour test)
+
+// Place les 48 pieces sur le plateau Yalta 12x8 (96 cases)
+// Zone BLANC : lignes 0-1  | Zone ROUGE : lignes 5-6  | Zone NOIR : lignes 10-11
+// Pions BLANC/ROUGE : direction +1 (vers ligne 11) | Pions NOIR : direction -1
 void Jeu::initialiserPieces() {
 
-    // Vérifie qu'il y a bien 3 joueurs
-    if (joueurs.size() < 3) {
-        return;
-    }
+    if (joueurs.size() < 3) return;
 
-    Joueur* j1 = joueurs[0];  // Joueur 1
-    Joueur* j2 = joueurs[1];  // Joueur 2
-    Joueur* j3 = joueurs[2];  // Joueur 3
+    Joueur* jBlanc = joueurs[0];  // BLANC  : zone lignes 0-1
+    Joueur* jNoir  = joueurs[1];  // NOIR   : zone lignes 10-11
+    Joueur* jRouge = joueurs[2];  // ROUGE  : zone lignes 5-6
 
-    // --- Placement des pièces du joueur 1 (coin haut-gauche) ---
-    Tour* tour1 = new Tour(Position(0, 0), j1->getCouleur(), j1);
-    Roi* roi1 = new Roi(Position(0, 1), j1->getCouleur(), j1);
+    // Fonction locale : ajoute la pièce au joueur ET la pose sur le plateau
+    auto placer = [&](Joueur* j, Piece* p) {
+        j->ajouterPiece(p);
+        plateau.placerPiece(p->getPosition(), p);
+    };
 
-    j1->ajouterPiece(tour1);
-    j1->ajouterPiece(roi1);
+    // ===== BLANC (lignes 0-1) =====
+    // Ligne 0 : Tour Cavalier Fou Reine Roi Fou Cavalier Tour
+    placer(jBlanc, new Tour    (Position(0, 0), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Cavalier(Position(0, 1), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Fou     (Position(0, 2), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Reine   (Position(0, 3), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Roi     (Position(0, 4), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Fou     (Position(0, 5), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Cavalier(Position(0, 6), Couleur::BLANC, jBlanc));
+    placer(jBlanc, new Tour    (Position(0, 7), Couleur::BLANC, jBlanc));
+    // Ligne 1 : 8 pions blancs (avancent vers la ligne 11, direction +1)
+    for (int c = 0; c < 8; c++)
+        placer(jBlanc, new Pion(Position(1, c), Couleur::BLANC, jBlanc));
 
-    plateau.placerPiece(Position(0, 0), tour1);
-    plateau.placerPiece(Position(0, 1), roi1);
+    // ===== ROUGE (lignes 5-6) =====
+    // Ligne 5 : 8 pions rouges (avancent vers la ligne 11, direction +1)
+    for (int c = 0; c < 8; c++)
+        placer(jRouge, new Pion(Position(5, c), Couleur::ROUGE, jRouge));
+    // Ligne 6 : Tour Cavalier Fou Reine Roi Fou Cavalier Tour
+    placer(jRouge, new Tour    (Position(6, 0), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Cavalier(Position(6, 1), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Fou     (Position(6, 2), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Reine   (Position(6, 3), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Roi     (Position(6, 4), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Fou     (Position(6, 5), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Cavalier(Position(6, 6), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Tour    (Position(6, 7), Couleur::ROUGE, jRouge));
 
-    // --- Placement des pièces du joueur 2 (coin bas-gauche) ---
-    Tour* tour2 = new Tour(Position(7, 0), j2->getCouleur(), j2);
-    Roi* roi2 = new Roi(Position(7, 1), j2->getCouleur(), j2);
+    // ===== NOIR (lignes 10-11) =====
+    // Ligne 10 : 8 pions noirs (avancent vers la ligne 0, direction -1)
+    for (int c = 0; c < 8; c++)
+        placer(jNoir, new Pion(Position(10, c), Couleur::NOIR, jNoir));
+    // Ligne 11 : Tour Cavalier Fou Roi Reine Fou Cavalier Tour
+    placer(jNoir, new Tour    (Position(11, 0), Couleur::NOIR, jNoir));
+    placer(jNoir, new Cavalier(Position(11, 1), Couleur::NOIR, jNoir));
+    placer(jNoir, new Fou     (Position(11, 2), Couleur::NOIR, jNoir));
+    placer(jNoir, new Roi     (Position(11, 3), Couleur::NOIR, jNoir));
+    placer(jNoir, new Reine   (Position(11, 4), Couleur::NOIR, jNoir));
+    placer(jNoir, new Fou     (Position(11, 5), Couleur::NOIR, jNoir));
+    placer(jNoir, new Cavalier(Position(11, 6), Couleur::NOIR, jNoir));
+    placer(jNoir, new Tour    (Position(11, 7), Couleur::NOIR, jNoir));// ===== ROUGE (lignes 5-6) =====
+    // Ligne 5 : 8 pions rouges (avancent vers la ligne 11, direction +1)
+    for (int c = 0; c < 8; c++)
+        placer(jRouge, new Pion(Position(5, c), Couleur::ROUGE, jRouge));
+    // Ligne 6 : Tour Cavalier Fou Reine Roi Fou Cavalier Tour
+    placer(jRouge, new Tour    (Position(6, 0), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Cavalier(Position(6, 1), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Fou     (Position(6, 2), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Reine   (Position(6, 3), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Roi     (Position(6, 4), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Fou     (Position(6, 5), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Cavalier(Position(6, 6), Couleur::ROUGE, jRouge));
+    placer(jRouge, new Tour    (Position(6, 7), Couleur::ROUGE, jRouge));
 
-    j2->ajouterPiece(tour2);
-    j2->ajouterPiece(roi2);
-
-    plateau.placerPiece(Position(7, 0), tour2);
-    plateau.placerPiece(Position(7, 1), roi2);
-
-    // --- Placement des pièces du joueur 3 (coin haut-droite) ---
-    Tour* tour3 = new Tour(Position(0, 7), j3->getCouleur(), j3);
-    Roi* roi3 = new Roi(Position(0, 6), j3->getCouleur(), j3);
-
-    j3->ajouterPiece(tour3);
-    j3->ajouterPiece(roi3);
-
-    plateau.placerPiece(Position(0, 7), tour3);
-    plateau.placerPiece(Position(0, 6), roi3);
-    
+    // ===== NOIR (lignes 10-11) =====
+    // Ligne 10 : 8 pions noirs (avancent vers la ligne 0, direction -1)
+    for (int c = 0; c < 8; c++)
+        placer(jNoir, new Pion(Position(10, c), Couleur::NOIR, jNoir));
+    // Ligne 11 : Tour Cavalier Fou Roi Reine Fou Cavalier Tour
+    placer(jNoir, new Tour    (Position(11, 0), Couleur::NOIR, jNoir));
+    placer(jNoir, new Cavalier(Position(11, 1), Couleur::NOIR, jNoir));
+    placer(jNoir, new Fou     (Position(11, 2), Couleur::NOIR, jNoir));
+    placer(jNoir, new Roi     (Position(11, 3), Couleur::NOIR, jNoir));
+    placer(jNoir, new Reine   (Position(11, 4), Couleur::NOIR, jNoir));
+    placer(jNoir, new Fou     (Position(11, 5), Couleur::NOIR, jNoir));
+    placer(jNoir, new Cavalier(Position(11, 6), Couleur::NOIR, jNoir));
+    placer(jNoir, new Tour    (Position(11, 7), Couleur::NOIR, jNoir));
 }
 
 // Fonction utilitaire : recherche le roi parmi les pièces d'un joueur

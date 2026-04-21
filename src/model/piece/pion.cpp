@@ -17,14 +17,14 @@ Pion::Pion(const Position& pos, Couleur coul, Joueur* j)
 std::vector<Position> Pion::mouvementsPossibles(const Plateau& plateau) const {
     std::vector<Position> mouvements;
 
-    // Détermine la direction d'avancement selon la couleur
-    // BLANC avance vers le haut (-1), les autres vers le bas (+1)
+    // NOIR avance vers les lignes décroissantes (de la ligne 10 vers la ligne 0)
+    // BLANC et ROUGE avancent vers les lignes croissantes (vers la ligne 11)
     int direction = 0;
 
-    if (couleur == Couleur::BLANC) {
-        direction = -1;  // Les blancs montent sur le plateau
+    if (couleur == Couleur::NOIR) {
+        direction = -1;
     } else {
-        direction = 1;   // Les noirs/rouges descendent
+        direction = 1;
     }
 
     // --- Avancer d'une case ---
@@ -75,8 +75,12 @@ bool Pion::peutFairePriseEnPassant() const {
 
 // Vérifie si le pion peut être promu (arrivé au bout du plateau)
 bool Pion::peutEtrePromu() const {
-    if (couleur == Couleur::BLANC) {
-        return position.getLigne() == 0;  // Les blancs sont promus en haut
+    // NOIR est promu quand il atteint la ligne 0 (zone Blanc)
+    if (couleur == Couleur::NOIR) {
+        return position.getLigne() == 0;
     }
-    return position.getLigne() == 7;      // Les autres sont promus en bas
+    // BLANC et ROUGE sont promus quand ils atteignent la ligne 11 (zone Noir)
+    return position.getLigne() == 11;
+    // BLANC et ROUGE sont promus quand ils atteignent la ligne 11 (zone Noir)
+    return position.getLigne() == 11;
 }
