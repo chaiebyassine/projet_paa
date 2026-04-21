@@ -6,25 +6,12 @@
 #include <iostream>
 #include <climits>
 
-// ===========================================================
-// Geometrie hexagonale fidelement inspiree du plateau Yalta reel.
-//
-// Le plateau est un hexagone compose de 6 matrices de 16 losanges
-// (4x4) chacune. Les 3 paires forment les zones des 3 joueurs.
-//
-// Mapping modele (ligne 0..11, col 0..7) -> matrice:
-//   Zone BLANC : lignes  0..3  -> matrices 1(col 0..3) et 2(col 4..7)
-//   Zone ROUGE : lignes  4..7  -> matrices 3(col 4..7) et 4(col 0..3)
-//   Zone NOIR  : lignes  8..11 -> matrices 5(col 0..3) et 6(col 4..7)
-// ===========================================================
-
 static const float PI = 3.14159265359f;
 
 static sf::Vector2f milieu(const sf::Vector2f& a, const sf::Vector2f& b) {
     return (a + b) / 2.f;
 }
 
-// Cree un losange (ConvexShape 4 points)
 static sf::ConvexShape makeLosange(sf::Vector2f p0, sf::Vector2f p1,
                                     sf::Vector2f p2, sf::Vector2f p3,
                                     sf::Color fill) {
@@ -37,12 +24,10 @@ static sf::ConvexShape makeLosange(sf::Vector2f p0, sf::Vector2f p1,
     return s;
 }
 
-// Retourne le centre d'un losange (moyenne des diagonales)
 static sf::Vector2f centreLosange(const sf::ConvexShape& s) {
     return (s.getPoint(0) + s.getPoint(2)) / 2.f;
 }
 
-// Verifie si un point est dans un ConvexShape (ray casting)
 static bool pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) {
     int n = (int)s.getPointCount();
     bool inside = false;
@@ -55,10 +40,6 @@ static bool pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) {
     return inside;
 }
 
-// ============================================================
-// createMatrixLines : cree les lignes de division d'une matrice 4x4
-// (meme logique que MakeBoard::createMatrixLines)
-// ============================================================
 static std::vector<sf::Vector2f> createMatrixLines(
     const sf::Vector2f& center,
     const sf::Vector2f& mil1, const sf::Vector2f& mil2,
@@ -76,10 +57,6 @@ static std::vector<sf::Vector2f> createMatrixLines(
     return lines;
 }
 
-// ============================================================
-// createMatrixLosange : cree les 16 losanges d'une matrice 4x4
-// (meme logique que MakeBoard::createMatrixLosange)
-// ============================================================
 static std::vector<sf::ConvexShape> createMatrixLosange(
     const sf::Vector2f& center,
     const std::vector<sf::Vector2f>& ml,
@@ -88,22 +65,22 @@ static std::vector<sf::ConvexShape> createMatrixLosange(
     sf::Color c1, sf::Color c2)
 {
     std::vector<sf::ConvexShape> s;
-    // Rangee 0 (pres du centre)
+    // Rang 0 (centre) -> idx 0..3
     s.push_back(makeLosange(center, ml[0], ml[6]+0.25f*(ml[7]-ml[6]), ml[6], c1));
     s.push_back(makeLosange(ml[0], ml[2], ml[6]+0.5f*(ml[7]-ml[6]), ml[6]+0.25f*(ml[7]-ml[6]), c2));
     s.push_back(makeLosange(ml[2], ml[4], ml[6]+0.75f*(ml[7]-ml[6]), ml[6]+0.5f*(ml[7]-ml[6]), c1));
     s.push_back(makeLosange(ml[4], mil1,  ml[7], ml[6]+0.75f*(ml[7]-ml[6]), c2));
-    // Rangee 1
+    // Rang 1 -> idx 4..7
     s.push_back(makeLosange(ml[6], ml[6]+0.25f*(ml[7]-ml[6]), ml[8]+0.25f*(ml[9]-ml[8]), ml[8], c2));
     s.push_back(makeLosange(ml[6]+0.25f*(ml[7]-ml[6]), ml[6]+0.5f*(ml[7]-ml[6]), ml[8]+0.5f*(ml[9]-ml[8]), ml[8]+0.25f*(ml[9]-ml[8]), c1));
     s.push_back(makeLosange(ml[6]+0.5f*(ml[7]-ml[6]), ml[6]+0.75f*(ml[7]-ml[6]), ml[8]+0.75f*(ml[9]-ml[8]), ml[8]+0.5f*(ml[9]-ml[8]), c2));
     s.push_back(makeLosange(ml[6]+0.75f*(ml[7]-ml[6]), ml[7], ml[9], ml[8]+0.75f*(ml[9]-ml[8]), c1));
-    // Rangee 2
+    // Rang 2 -> idx 8..11
     s.push_back(makeLosange(ml[8], ml[8]+0.25f*(ml[9]-ml[8]), ml[10]+0.25f*(ml[11]-ml[10]), ml[10], c1));
     s.push_back(makeLosange(ml[8]+0.25f*(ml[9]-ml[8]), ml[8]+0.5f*(ml[9]-ml[8]), ml[10]+0.5f*(ml[11]-ml[10]), ml[10]+0.25f*(ml[11]-ml[10]), c2));
     s.push_back(makeLosange(ml[8]+0.5f*(ml[9]-ml[8]), ml[8]+0.75f*(ml[9]-ml[8]), ml[10]+0.75f*(ml[11]-ml[10]), ml[10]+0.5f*(ml[11]-ml[10]), c1));
     s.push_back(makeLosange(ml[8]+0.75f*(ml[9]-ml[8]), ml[9], ml[11], ml[10]+0.75f*(ml[11]-ml[10]), c2));
-    // Rangee 3 (bord exterieur = pieces)
+    // Rang 3 (bord) -> idx 12..15
     s.push_back(makeLosange(ml[10], ml[10]+0.25f*(ml[11]-ml[10]), ml[1],  mil2, c2));
     s.push_back(makeLosange(ml[10]+0.25f*(ml[11]-ml[10]), ml[10]+0.5f*(ml[11]-ml[10]), ml[3], ml[1], c1));
     s.push_back(makeLosange(ml[10]+0.5f*(ml[11]-ml[10]), ml[10]+0.75f*(ml[11]-ml[10]), ml[5], ml[3], c2));
@@ -112,7 +89,7 @@ static std::vector<sf::ConvexShape> createMatrixLosange(
 }
 
 // ============================================================
-// Constructeur : construit la geometrie hexagonale complete
+// Constructeur
 // ============================================================
 VueSFML::VueSFML(Jeu& jeu)
     : jeu(jeu), controleur(&jeu),
@@ -126,14 +103,15 @@ VueSFML::VueSFML(Jeu& jeu)
     buildBoard();
 }
 
+// ============================================================
+// buildBoard
+// ============================================================
 void VueSFML::buildBoard() {
-    // --- Hexagone (meme parametres que MakeBoard) ---
     std::vector<float> sides  = {450,460,460,450,460,460};
     std::vector<float> sides2 = {500,510,510,500,510,510};
 
     sf::Vector2f origin(350.f, 150.f);
 
-    // Points de l'hexagone principal
     std::vector<sf::Vector2f> pts;
     pts.push_back(origin + sf::Vector2f(sides[0], 0));
     float ang = 0;
@@ -142,12 +120,10 @@ void VueSFML::buildBoard() {
         pts.push_back(pts.back() + sf::Vector2f(std::cos(ang),std::sin(ang))*sides[i]);
     }
 
-    // Centre de l'hexagone
     sf::Vector2f ctr(0,0);
     for (auto& p : pts) ctr += p;
     ctr /= 6.f;
 
-    // Points hexagone 2
     std::vector<sf::Vector2f> pts2;
     pts2.push_back(origin + sf::Vector2f(sides2[0], 0));
     ang = 0;
@@ -161,7 +137,6 @@ void VueSFML::buildBoard() {
     sf::Vector2f off = ctr - ctr2;
     for (auto& p : pts2) p += off;
 
-    // Hexagone de fond (affichage)
     hexBorder.setPointCount(6);
     for (int i = 0; i < 6; i++) hexBorder.setPoint(i, pts[i]);
     hexBorder.setFillColor(sf::Color::Transparent);
@@ -174,28 +149,20 @@ void VueSFML::buildBoard() {
     hexFill.setOutlineColor(sf::Color::Black);
     hexFill.setOutlineThickness(7);
 
-    // Milieux des aretes
     sf::Vector2f mils[6] = {
-        milieu(pts[4],pts[3]), // 0 bas gauche
-        milieu(pts[3],pts[2]), // 1 bas
-        milieu(pts[0],pts[1]), // 2 haut droite
-        milieu(pts[0],pts[5]), // 3 haut
-        milieu(pts[5],pts[4]), // 4 haut gauche
-        milieu(pts[1],pts[2])  // 5 bas droite
+        milieu(pts[4],pts[3]),
+        milieu(pts[3],pts[2]),
+        milieu(pts[0],pts[1]),
+        milieu(pts[0],pts[5]),
+        milieu(pts[5],pts[4]),
+        milieu(pts[1],pts[2])
     };
 
-    // Couleurs des zones
-    sf::Color blanc (0xFE,0xF7,0xE5);
-    sf::Color beige (0xEE,0xCF,0xA1);
-
-    // Zone ROUGE (haut, matrices 1+2)
-    sf::Color rougeCl(255,180,180), rougeFc(190,60,60);
-    // Zone NOIR  (bas gauche, matrices 3+4)
-    sf::Color noirCl (160,210,160), noirFc (30,110,30);
-    // Zone BLANC (bas droite, matrices 5+6)
+    // Couleurs
     sf::Color blancCl(180,200,255), blancFc(50,90,200);
+    sf::Color rougeCl(255,180,180), rougeFc(190,60,60);
+    sf::Color noirCl (160,210,160), noirFc (30,110,30);
 
-    // Matrices 1..6 (comme MakeBoard)
     auto ml1 = createMatrixLines(ctr, mils[1], mils[0], pts[3], pts[4], pts[2]);
     auto ml2 = createMatrixLines(ctr, mils[5], mils[1], pts[2], pts[3], pts[1]);
     auto ml3 = createMatrixLines(ctr, mils[0], mils[4], pts[4], pts[5], pts[3]);
@@ -203,69 +170,90 @@ void VueSFML::buildBoard() {
     auto ml5 = createMatrixLines(ctr, mils[2], mils[5], pts[1], pts[2], pts[0]);
     auto ml6 = createMatrixLines(ctr, mils[3], mils[2], pts[0], pts[1], pts[5]);
 
-    matrices[0] = createMatrixLosange(ctr, ml1, pts[3], mils[1], mils[0], rougeFc, rougeCl);
-    matrices[1] = createMatrixLosange(ctr, ml2, pts[2], mils[5], mils[1], rougeCl, rougeFc);
-    matrices[2] = createMatrixLosange(ctr, ml3, pts[4], mils[0], mils[4], noirCl,  noirFc );
-    matrices[3] = createMatrixLosange(ctr, ml4, pts[5], mils[4], mils[3], noirFc,  noirCl );
-    matrices[4] = createMatrixLosange(ctr, ml5, pts[1], mils[2], mils[5], blancFc, blancCl);
-    matrices[5] = createMatrixLosange(ctr, ml6, pts[0], mils[3], mils[2], blancCl, blancFc);
+    // matrices 0-1 = BLANC (bleu)
+    // matrices 2-3 = ROUGE (rouge)
+    // matrices 4-5 = NOIR  (vert)
+    matrices[0] = createMatrixLosange(ctr, ml1, pts[3], mils[1], mils[0], blancFc, blancCl);
+    matrices[1] = createMatrixLosange(ctr, ml2, pts[2], mils[5], mils[1], blancCl, blancFc);
+    matrices[2] = createMatrixLosange(ctr, ml3, pts[4], mils[0], mils[4], rougeCl, rougeFc);
+    matrices[3] = createMatrixLosange(ctr, ml4, pts[5], mils[4], mils[3], rougeFc, rougeCl);
+    matrices[4] = createMatrixLosange(ctr, ml5, pts[1], mils[2], mils[5], noirFc,  noirCl );
+    matrices[5] = createMatrixLosange(ctr, ml6, pts[0], mils[3], mils[2], noirCl,  noirFc );
 
-    // Precalcul du mapping modele -> losange
-    // Modele: 12 lignes x 8 cols
-    // Ligne 0..3  = zone ROUGE  (mat 0+1), col 0..3 -> mat0, col 4..7 -> mat1
-    // Ligne 4..7  = zone NOIR   (mat 2+3), col 0..3 -> mat3, col 4..7 -> mat2
-    // Ligne 8..11 = zone BLANC  (mat 4+5), col 0..3 -> mat5, col 4..7 -> mat4
-    // Dans chaque matrice: index 0..15, rangee 0=centre, 3=bord ext
-    // Rangee locale r = 3 - (ligne % 4) pour rouge/blanc
-    //                r = ligne % 4        pour noir
-    // Col locale c  = col % 4
-    // Index losange = r*4 + c
-    for (int l = 0; l < 12; l++) {
-        for (int c = 0; c < 8; c++) {
-            caseVersLosange[l][c] = {-1, -1};
-            int mat = -1; int idx = -1;
-            int rc = c % 4; // colonne locale dans la matrice
+    // ============================================================
+    // Mapping modele -> losange
+    //
+    // idx = rc + 4 * rl
+    //   rc = c % 4  (colonne locale 0..3)
+    //   rl = rang   (0=centre, 3=bord)
+    //
+    // BLANC (l=0..3) : mat=(c<4)?0:1,  rl=3-l
+    // ROUGE (l=4..7) : mat=(c<4)?2:3,  rl=l-4
+    // NOIR (l=8..11) : mat=(c<4)?4:5,  rl=l-8
+ for (int l = 0; l < 12; l++) {
+    for (int c = 0; c < 8; c++) {
+        int rc = c % 4;
+        int mat = -1;
+        int rl  = -1;
+        int idx = -1;
 
-            if (l < 4) {
-                // Zone ROUGE : pieces sur lignes 0-1 (bord exterieur = rang 3)
-                // rang 0 = proche centre (ligne 3), rang 3 = bord (ligne 0)
-                int rl = 3 - l; // ligne 0 -> rang 3, ligne 3 -> rang 0
-                if (c < 4) { mat = 0; idx = rl*4 + rc; }
-                else        { mat = 1; idx = rl*4 + (3-rc); }
-            } else if (l < 8) {
-                // Zone NOIR : pieces sur lignes 10-11 (bord ext = rang 3)
-                // mais dans le modele les lignes NOIR sont 4..7? Non:
-                // initialiserPieces: NOIR = lignes 10-11
-                // Donc l=4..7 est une zone neutre dans le modele courant
-                // On les met quand meme quelque part (zones centrales)
-                int rl = l - 4; // 0..3 rang local
-                if (c < 4) { mat = 3; idx = rl*4 + rc; }
-                else        { mat = 2; idx = rl*4 + (3-rc); }
+        if (l < 4) {
+            // BLANC -> bas
+            rl = 3 - l;
+
+            if (c < 4) {
+                mat = 0;
+                idx = (3 - rc) * 4 + rl;
             } else {
-                // Zone NOIR (modele lignes 8-11) -> matrices 2+3
-                // pieces sur ligne 10-11 = bord ext = rang 3
-                int rl = l - 8; // 0..3
-                if (c < 4) { mat = 5; idx = rl*4 + rc; }
-                else        { mat = 4; idx = rl*4 + (3-rc); }
+                mat = 1;
+                idx = rc + 4 * rl;
             }
-            caseVersLosange[l][c] = {mat, idx};
         }
-    }
+       else if (l < 8) {
+    // ROUGE -> gauche
+    rl = l - 4;
 
-    // Init table inverse a -1
+    if (c < 4) {
+        // moitié gauche
+        mat = 2;
+        idx = rc + 4 * rl;
+    } else {
+        // moitié droite (CONTINUE dans le même sens)
+        mat = 3;
+        idx = (c - 4) + 4 * rl;
+    }
+}
+        else {
+            // NOIR -> droite
+            rl = l - 8;
+
+            if (c < 4) {
+                mat = 4;
+                idx = (3 - rc) * 4 + rl;
+            } else {
+                mat = 5;
+                idx = rc + 4 * rl;
+            }
+        }
+
+        caseVersLosange[l][c] = {mat, idx};
+    }
+}
+    // Table inverse
     for (int m = 0; m < 6; m++)
         for (int i = 0; i < 16; i++)
             losangeVersCase[m][i] = {-1,-1};
-    // Construit la table inverse: losange -> (ligne,col)
+
     for (int l = 0; l < 12; l++)
         for (int c = 0; c < 8; c++) {
             auto [m, i] = caseVersLosange[l][c];
-            if (m >= 0) losangeVersCase[m][i] = {l,c};
+            if (m >= 0 && i >= 0 && i < 16)
+                losangeVersCase[m][i] = {l,c};
         }
 }
 
 // ============================================================
-// run() - boucle principale
+// run()
 // ============================================================
 void VueSFML::run() {
     while (window.isOpen()) {
@@ -310,12 +298,10 @@ void VueSFML::dessinerHighlights() {
     auto [ms, is] = caseVersLosange[sel.getLigne()][sel.getColonne()];
     if (ms < 0) return;
 
-    // Copie du losange en jaune
     sf::ConvexShape hl = matrices[ms][is];
     hl.setFillColor(sf::Color(255,220,40,210));
     window.draw(hl);
 
-    // Destinations possibles
     const Case* ca = jeu.getPlateau().obtenirCase(sel);
     if (ca && ca->estOccupee()) {
         auto moves = ca->getPiece()->mouvementsPossibles(jeu.getPlateau());
@@ -335,29 +321,40 @@ void VueSFML::dessinerHighlights() {
 void VueSFML::dessinerPieces() {
     for (int l = 0; l < 12; l++) {
         for (int c = 0; c < 8; c++) {
+
             const Case* ca = jeu.getPlateau().obtenirCase(Position(l,c));
             if (!ca || !ca->estOccupee()) continue;
 
             const Piece* p = ca->getPiece();
-            Couleur col = p->getCouleur();
 
-            sf::Color txtCol, outCol;
-            if      (col == Couleur::BLANC) { txtCol = sf::Color(210,230,255); outCol = sf::Color(20,20,80);   }
-            else if (col == Couleur::ROUGE) { txtCol = sf::Color(255,210,210); outCol = sf::Color(80,0,0);     }
-            else                            { txtCol = sf::Color(30,30,30);    outCol = sf::Color(180,180,180);}
+            // 🔥 prendre seulement la première lettre
+            std::string symbole = p->getSymbole();
+            std::string lettre(1, symbole[0]); // EX: "P", "T", etc.
+
+            // couleur selon joueur
+            sf::Color txtCol;
+            if (p->getCouleur() == Couleur::BLANC)
+                txtCol = sf::Color::White;
+            else if (p->getCouleur() == Couleur::ROUGE)
+                txtCol = sf::Color::Red;
+            else
+                txtCol = sf::Color::Black;
 
             auto [m, i] = caseVersLosange[l][c];
             if (m < 0) continue;
-            sf::Vector2f cpos = centreLosange(matrices[m][i]);
 
-            sf::Text txt(font, p->getSymbole(), 22u);
-            txt.setStyle(sf::Text::Bold);
+            sf::Vector2f centre = centreLosange(matrices[m][i]);
+
+            sf::Text txt(font, lettre, 20u);
             txt.setFillColor(txtCol);
-            txt.setOutlineColor(outCol);
-            txt.setOutlineThickness(1.5f);
+            txt.setStyle(sf::Text::Bold);
+
             auto bounds = txt.getLocalBounds();
-            txt.setPosition({cpos.x - bounds.size.x*0.5f - bounds.position.x,
-                             cpos.y - bounds.size.y*0.5f - bounds.position.y});
+            txt.setPosition({
+                centre.x - bounds.size.x / 2.f,
+                centre.y - bounds.size.y / 2.f
+            });
+
             window.draw(txt);
         }
     }

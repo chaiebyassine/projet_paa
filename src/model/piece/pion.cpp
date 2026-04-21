@@ -21,10 +21,12 @@ std::vector<Position> Pion::mouvementsPossibles(const Plateau& plateau) const {
     // BLANC et ROUGE avancent vers les lignes croissantes (vers la ligne 11)
     int direction = 0;
 
-    if (couleur == Couleur::NOIR) {
-        direction = -1;
+    if (couleur == Couleur::BLANC) {
+        direction = 1;   // avance vers ligne 11
+    } else if (couleur == Couleur::ROUGE) {
+        direction = -1;  // avance vers ligne 0 (territoire Blanc)
     } else {
-        direction = 1;
+        direction = -1;  // NOIR : avance vers ligne 0
     }
 
     // --- Avancer d'une case ---
@@ -75,12 +77,11 @@ bool Pion::peutFairePriseEnPassant() const {
 
 // Vérifie si le pion peut être promu (arrivé au bout du plateau)
 bool Pion::peutEtrePromu() const {
-    // NOIR est promu quand il atteint la ligne 0 (zone Blanc)
-    if (couleur == Couleur::NOIR) {
-        return position.getLigne() == 0;
+    if (couleur == Couleur::BLANC) {
+        return position.getLigne() == 11;  // Blanc avance vers ligne 11
     }
-    // BLANC et ROUGE sont promus quand ils atteignent la ligne 11 (zone Noir)
-    return position.getLigne() == 11;
-    // BLANC et ROUGE sont promus quand ils atteignent la ligne 11 (zone Noir)
-    return position.getLigne() == 11;
+    if (couleur == Couleur::ROUGE) {
+        return position.getLigne() == 0;   // Rouge avance vers ligne 0
+    }
+    return position.getLigne() == 0;       // Noir avance vers ligne 0
 }
