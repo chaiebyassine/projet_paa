@@ -39,7 +39,27 @@ static bool pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) {
     }
     return inside;
 }
+std::string VueSFML::getCleTexture(const Piece* p) const {
+    std::string couleur;
 
+    if (p->getCouleur() == Couleur::BLANC)
+        couleur = "White";
+    else if (p->getCouleur() == Couleur::ROUGE)
+        couleur = "Red";
+    else
+        couleur = "Black";
+
+    std::string symbole = p->getSymbole();
+
+    if (symbole == "P") return couleur + "Pawn";
+    if (symbole == "T") return couleur + "Rook";
+    if (symbole == "C") return couleur + "Knight";
+    if (symbole == "F") return couleur + "Bishop";
+    if (symbole == "D") return couleur + "Queen";
+    if (symbole == "R") return couleur + "King";
+
+    return "";
+}
 static std::vector<sf::Vector2f> createMatrixLines(
     const sf::Vector2f& center,
     const sf::Vector2f& mil1, const sf::Vector2f& mil2,
@@ -100,6 +120,7 @@ VueSFML::VueSFML(Jeu& jeu)
     if (!font.openFromFile("C:\\Windows\\Fonts\\arial.ttf"))
         (void)font.openFromFile("C:\\Windows\\Fonts\\consola.ttf");
 
+    chargerTextures();
     buildBoard();
 }
 
@@ -318,48 +339,67 @@ void VueSFML::dessinerHighlights() {
 // ============================================================
 // Pieces
 // ============================================================
+void VueSFML::chargerTextures() {
+    if (!textures["WhitePawn"].loadFromFile("image/WhitePawn.png")) std::cout << "Erreur WhitePawn\n";
+    if (!textures["WhiteRook"].loadFromFile("image/WhiteRook.png")) std::cout << "Erreur WhiteRook\n";
+    if (!textures["WhiteKnight"].loadFromFile("image/WhiteKnight.png")) std::cout << "Erreur WhiteKnight\n";
+    if (!textures["WhiteBishop"].loadFromFile("image/WhiteBishop.png")) std::cout << "Erreur WhiteBishop\n";
+    if (!textures["WhiteQueen"].loadFromFile("image/WhiteQueen.png")) std::cout << "Erreur WhiteQueen\n";
+    if (!textures["WhiteKing"].loadFromFile("image/WhiteKing.png")) std::cout << "Erreur WhiteKing\n";
+
+    if (!textures["BlackPawn"].loadFromFile("image/BlackPawn.png")) std::cout << "Erreur BlackPawn\n";
+    if (!textures["BlackRook"].loadFromFile("image/BlackRook.png")) std::cout << "Erreur BlackRook\n";
+    if (!textures["BlackKnight"].loadFromFile("image/BlackKnight.png")) std::cout << "Erreur BlackKnight\n";
+    if (!textures["BlackBishop"].loadFromFile("image/BlackBishop.png")) std::cout << "Erreur BlackBishop\n";
+    if (!textures["BlackQueen"].loadFromFile("image/BlackQueen.png")) std::cout << "Erreur BlackQueen\n";
+    if (!textures["BlackKing"].loadFromFile("image/BlackKing.png")) std::cout << "Erreur BlackKing\n";
+
+    if (!textures["RedPawn"].loadFromFile("image/RedPawn.png")) std::cout << "Erreur RedPawn\n";
+    if (!textures["RedRook"].loadFromFile("image/RedRook.png")) std::cout << "Erreur RedRook\n";
+    if (!textures["RedKnight"].loadFromFile("image/RedKnight.png")) std::cout << "Erreur RedKnight\n";
+    if (!textures["RedBishop"].loadFromFile("image/RedBishop.png")) std::cout << "Erreur RedBishop\n";
+    if (!textures["RedQueen"].loadFromFile("image/RedQueen.png")) std::cout << "Erreur RedQueen\n";
+    if (!textures["RedKing"].loadFromFile("image/RedKing.png")) std::cout << "Erreur RedKing\n";
+}
 void VueSFML::dessinerPieces() {
     for (int l = 0; l < 12; l++) {
         for (int c = 0; c < 8; c++) {
-
-            const Case* ca = jeu.getPlateau().obtenirCase(Position(l,c));
+            const Case* ca = jeu.getPlateau().obtenirCase(Position(l, c));
             if (!ca || !ca->estOccupee()) continue;
 
             const Piece* p = ca->getPiece();
-
-            // 🔥 prendre seulement la première lettre
-            std::string symbole = p->getSymbole();
-            std::string lettre(1, symbole[0]); // EX: "P", "T", etc.
-
-            // couleur selon joueur
-            sf::Color txtCol;
-            if (p->getCouleur() == Couleur::BLANC)
-                txtCol = sf::Color::White;
-            else if (p->getCouleur() == Couleur::ROUGE)
-                txtCol = sf::Color::Red;
-            else
-                txtCol = sf::Color::Black;
+            std::string cle = getCleTexture(p);
+            if (cle.empty() || textures.find(cle) == textures.end()) continue;
 
             auto [m, i] = caseVersLosange[l][c];
-            if (m < 0) continue;
+            if (m < 0 || i < 0 || i >= 16) continue;
 
-            sf::Vector2f centre = centreLosange(matrices[m][i]);
+            sf::Vector2f cpos = centreLosange(matrices[m][i]);
 
-            sf::Text txt(font, lettre, 20u);
-            txt.setFillColor(txtCol);
-            txt.setStyle(sf::Text::Bold);
+            sf::Sprite sprite(textures[cle]);
 
-            auto bounds = txt.getLocalBounds();
-            txt.setPosition({
-                centre.x - bounds.size.x / 2.f,
-                centre.y - bounds.size.y / 2.f
+            // taille cible
+            float targetW = 42.f;
+            float targetH = 42.f;
+
+            sf::Vector2u texSize = textures[cle].getSize();
+            if (texSize.x == 0 || texSize.y == 0) continue;
+
+            sprite.setScale({
+                targetW / texSize.x,
+                targetH / texSize.y
             });
 
-            window.draw(txt);
+            auto bounds = sprite.getGlobalBounds();
+            sprite.setPosition({
+                cpos.x - bounds.size.x * 0.5f,
+                cpos.y - bounds.size.y * 0.5f
+            });
+
+            window.draw(sprite);
         }
     }
 }
-
 // ============================================================
 // Info
 // ============================================================

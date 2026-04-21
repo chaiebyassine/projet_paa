@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <map>
+
 #include "../model/jeu.h"
 #include "../model/base/position.h"
 #include "../controller/controleurjeu.h"
+#include "../model/piece/piece.h"
 
 class VueSFML {
 public:
@@ -19,9 +22,9 @@ public:
 
 private:
     sf::RenderWindow window;
-    sf::Font         font;
-    Jeu&             jeu;
-    ControleurJeu    controleur;
+    sf::Font font;
+    Jeu& jeu;
+    ControleurJeu controleur;
 
     sf::ConvexShape hexBorder;
     sf::ConvexShape hexFill;
@@ -30,6 +33,11 @@ private:
 
     std::pair<int,int> caseVersLosange[12][8];
     std::pair<int,int> losangeVersCase[6][16];
+
+    std::map<std::string, sf::Texture> textures;
+
+    void chargerTextures();
+    std::string getCleTexture(const Piece* p) const;
 
     void buildBoard();
     void dessinerCases();
