@@ -5,60 +5,59 @@
 #include "etatpartie.h"
 #include "joueur/Joueur.h"
 #include "base/position.h"
-#include <vector>
 
-class CommandeCoup;  // Déclaration anticipée de la classe CommandeCoup
+class CommandeCoup;
 
-// Classe principale du jeu d'échecs à 3 joueurs
-// Gère le plateau, les joueurs, les tours de jeu, et la logique de la partie
+// Classe principale du jeu : gère le plateau, les 3 joueurs, les tours et l'historique des coups
 class Jeu {
 private:
-    Plateau plateau;                          // Le plateau de jeu
-    std::vector<Joueur*> joueurs;             // Liste des joueurs (max 3)
-    int indexJoueurCourant;                   // Index du joueur dont c'est le tour
-    EtatPartie etatPartie;                    // État actuel de la partie
-    std::vector<CommandeCoup*> historiqueCoups; // Historique des coups joués (pour annuler)
+    Plateau plateau;                            // Le plateau de jeu avec toutes ses cases
+    std::vector<Joueur*> joueurs;               // Les 3 joueurs de la partie
+    int indexJoueurCourant;                     // Index (0, 1 ou 2) du joueur dont c'est le tour
+    EtatPartie etatPartie;                      // État actuel : en cours, échec, mat, etc.
+    std::vector<CommandeCoup*> historiqueCoups; // Tous les coups joués (permet d'annuler)
 
 public:
-    // Constructeur : crée un jeu avec un plateau de taille lignes x colonnes
+    // Crée un jeu avec un plateau de taille lignes x colonnes
     Jeu(int lignes, int colonnes);
 
-    // Initialise les pièces sur le plateau pour les 3 joueurs
+    // Place les 16 pièces de chaque joueur sur le plateau dans leur zone de départ
     void initialiserPieces();
 
-    // Ajoute un joueur au jeu (maximum 3 joueurs)
+    // Ajoute un joueur au jeu (3 maximum)
     void ajouterJoueur(Joueur* joueur);
 
-    // Ajoute une commande à l'historique des coups
+    // Sauvegarde un coup dans l'historique (utile pour annuler)
     void ajouterCommandeHistorique(CommandeCoup* commande);
 
-    // Retourne l'historique des coups joués
+    // Retourne tous les coups enregistrés
     const std::vector<CommandeCoup*>& getHistoriqueCoups() const;
 
-    // Retourne une référence modifiable vers le plateau
+    // Retourne le plateau (version modifiable)
     Plateau& getPlateau();
 
-    // Retourne une référence constante vers le plateau
+    // Retourne le plateau (version lecture seule)
     const Plateau& getPlateau() const;
 
     // Retourne le joueur dont c'est le tour
     Joueur* getJoueurCourant() const;
 
-    // Retourne l'état actuel de la partie
+    // Retourne l'état de la partie
     EtatPartie getEtatPartie() const;
 
-    // Vérifie si un joueur est en échec (son roi est menacé)
+    // Vérifie si le roi d'un joueur est menacé
     bool estEnEchec(Joueur* joueur);
 
-    // Passe au joueur suivant
+    // Passe la main au joueur suivant
     void changerJoueur();
 
-    // Déplace une pièce de la position de départ vers la position d'arrivée
+    // Déplace une pièce en vérifiant toutes les règles du jeu
+    // Retourne vrai si le déplacement est valide et a été effectué
     bool deplacerPiece(const Position& depart, const Position& arrivee);
 
-    // Vérifie si un joueur est en échec et mat (aucun coup ne peut le sauver)
+    // Vérifie si un joueur est mat (aucun coup possible pour sortir de l'échec)
     bool estMat(Joueur* joueur);
 
-    // Démarre une nouvelle partie
+    // Remet la partie à zéro et place les pièces
     void demarrerPartie();
 };

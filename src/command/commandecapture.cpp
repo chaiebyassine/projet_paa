@@ -1,3 +1,7 @@
+/**
+ * @file commandecapture.cpp
+ * @brief Implémentation de la classe CommandeCapture.
+ */
 #include "commandecapture.h"
 #include "../model/plateau/case.h"
 

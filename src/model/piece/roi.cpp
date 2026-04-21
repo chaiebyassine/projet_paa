@@ -1,3 +1,7 @@
+/**
+ * @file roi.cpp
+ * @brief Implémentation de la classe Roi.
+ */
 #include "Roi.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

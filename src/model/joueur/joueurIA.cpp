@@ -1,3 +1,7 @@
+/**
+ * @file joueurIA.cpp
+ * @brief Implémentation de la classe JoueurIA.
+ */
 #include "JoueurIA.h"
 #include <iostream>
 

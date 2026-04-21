@@ -2,15 +2,15 @@
 
 #include "Joueur.h"
 
-// Représente un joueur contrôlé par l'intelligence artificielle
+// Joueur contrôlé par l'ordinateur via l'algorithme minimax/alpha-beta
 class JoueurIA : public Joueur {
 private:
-    int profondeurRecherche;  // Profondeur de l'algorithme de recherche (minimax, etc.)
+    int profondeurRecherche;  // Plus la profondeur est grande, plus l'IA réfléchit loin
 
 public:
-    // Constructeur : crée un joueur IA avec un nom, une couleur et une profondeur de recherche
+    // Crée un joueur IA avec un nom, une couleur et une profondeur de calcul
     JoueurIA(const std::string& nom, Couleur couleur, int profondeur);
 
-    // Implémentation de la méthode jouer pour un joueur IA
+    // L'IA calcule le meilleur coup et le joue
     void jouer() override;
 };

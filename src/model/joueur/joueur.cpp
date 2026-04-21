@@ -1,3 +1,7 @@
+/**
+ * @file joueur.cpp
+ * @brief Implémentation de la classe abstraite Joueur.
+ */
 #include "Joueur.h"
 
 // Constructeur : initialise le nom, la couleur, et le joueur n'est pas éliminé au départ

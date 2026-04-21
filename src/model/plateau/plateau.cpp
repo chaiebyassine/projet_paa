@@ -1,3 +1,7 @@
+/**
+ * @file plateau.cpp
+ * @brief Implémentation de la classe Plateau.
+ */
 #include "plateau.h"
 #include "../piece/Piece.h"
 

@@ -1,3 +1,7 @@
+/**
+ * @file case.cpp
+ * @brief Implémentation de la classe Case.
+ */
 #include "Case.h"
 #include "../piece/Piece.h"
 

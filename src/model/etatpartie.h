@@ -1,10 +1,10 @@
 #pragma once
 
-// Énumération représentant les différents états possibles d'une partie d'échecs
+// Tous les états possibles d'une partie
 enum class EtatPartie {
-    EN_COURS,  // La partie est en cours de jeu
-    ECHEC,     // Un joueur est en échec
-    MAT,       // Un joueur est en échec et mat (fin de partie)
-    NULLE,     // La partie est nulle (match nul)
+    EN_COURS,  // La partie se déroule normalement
+    ECHEC,     // Un roi est en train d'être menacé
+    MAT,       // Un joueur est mat → il est éliminé
+    NULLE,     // Personne ne peut gagner → match nul
     TERMINEE   // La partie est terminée
 };

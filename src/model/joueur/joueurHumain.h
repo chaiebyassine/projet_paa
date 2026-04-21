@@ -2,12 +2,13 @@
 
 #include "Joueur.h"
 
-// Représente un joueur humain qui joue manuellement
+// Joueur contrôlé par une personne réelle
+// Les clics de l'utilisateur sont gérés par le ControleurJeu
 class JoueurHumain : public Joueur {
 public:
-    // Constructeur : crée un joueur humain avec un nom et une couleur
+    // Crée un joueur humain avec un nom et une couleur
     JoueurHumain(const std::string& nom, Couleur couleur);
 
-    // Implémentation de la méthode jouer pour un joueur humain
+    // Affiche un message indiquant que c'est au tour de ce joueur
     void jouer() override;
 };

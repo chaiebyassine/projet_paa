@@ -1,3 +1,7 @@
+/**
+ * @file jeu.cpp
+ * @brief Implémentation de la classe Jeu.
+ */
 #include "Jeu.h"
 #include "plateau/Case.h"
 #include "piece/Piece.h"

@@ -2,34 +2,33 @@
 
 #include "../base/position.h"
 #include "../base/couleur.h"
-class Piece; // Déclaration anticipée pour éviter l'inclusion circulaire
+class Piece;
 
-// Représente une case du plateau d'échecs
-// Chaque case a une position et peut contenir (ou non) une pièce
+// Représente une case du plateau : elle a une position et peut contenir une pièce (ou être vide)
 class Case {
 private:
-    Position position;  // Position de la case sur le plateau (ligne, colonne)
-    Piece* piece;       // Pointeur vers la pièce posée sur cette case (nullptr si vide)
+    Position position;  // Coordonnées de la case sur le plateau
+    Piece* piece;       // Pièce posée sur la case (nullptr si vide)
 
 public:
-    // Constructeur : crée une case vide à la position donnée
+    // Crée une case vide à la position donnée
     Case(Position pos);
 
-    // Retourne vrai si la case contient une pièce
+    // Retourne vrai s'il y a une pièce sur la case
     bool estOccupee() const;
 
-    // Place une pièce sur cette case
+    // Pose une pièce sur la case
     void placerPiece(Piece* p);
 
-    // Retire la pièce de cette case (la case devient vide)
+    // Enleve la pièce de la case (la case devient vide)
     void vider();
 
-    // Retourne la pièce présente sur la case (nullptr si vide)
+    // Retourne la pièce sur la case (nullptr si vide)
     Piece* getPiece() const;
 
     // Retourne la position de la case
     Position getPosition() const;
 
-    // Vérifie si la case contient une pièce de couleur différente (pièce adverse)
+    // Retourne vrai si la case contient une pièce qui n'est pas de la même couleur
     bool contientPieceAdverse(Couleur couleur) const;
 };

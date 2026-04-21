@@ -1,3 +1,10 @@
+/**
+ * @file main.cpp
+ * @brief Point d'entrée de l'application — Jeu d'échecs Yalta à 3 joueurs.
+ *
+ * Crée un jeu, ajoute les joueurs, place une pièce de test et simule
+ * deux clics via le contrôleur pour valider le déplacement et l'historique.
+ */
 #include <iostream>
 #include "src/model/jeu.h"
 #include "src/model/joueur/joueurHumain.h"

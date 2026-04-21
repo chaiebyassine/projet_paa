@@ -1,3 +1,7 @@
+/**
+ * @file controleurjeu.cpp
+ * @brief Implémentation de la classe ControleurJeu.
+ */
 #include "controleurjeu.h"
 #include "../model/plateau/case.h"
 #include "../model/piece/piece.h"

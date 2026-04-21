@@ -1,3 +1,7 @@
+/**
+ * @file cavalier.cpp
+ * @brief Implémentation de la classe Cavalier.
+ */
 #include "Cavalier.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

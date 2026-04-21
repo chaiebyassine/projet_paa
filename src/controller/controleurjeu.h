@@ -3,24 +3,24 @@
 #include "../model/jeu.h"
 #include "../model/base/position.h"
 
-// Controleur du jeu (MVC)
-// Il reçoit les actions utilisateur (clics) et déclenche les commandes
+// Contrôleur du jeu (patron MVC)
+// Reçoit les clics de l'utilisateur, crée les commandes et les envoie au modèle
 class ControleurJeu {
 private:
-    Jeu* jeu;                         // Référence vers le modèle (Jeu)
-    Position positionSelectionnee;   // Position de la pièce sélectionnée
-    bool pieceSelectionnee;          // Indique si une pièce est sélectionnée
+    Jeu* jeu;                        // Le modèle (contient toute la logique du jeu)
+    Position positionSelectionnee;   // La case sur laquelle l'utilisateur a cliqué en premier
+    bool pieceSelectionnee;          // Vrai si l'utilisateur a déjà choisi une pièce
 
 public:
-    // Constructeur
+    // Crée le contrôleur avec une référence vers le jeu
     ControleurJeu(Jeu* jeu);
 
-    // Gère un clic sur une case
+    // Appelé à chaque clic : 1er clic = sélection, 2ème clic = déplacement
     void gererClicCase(const Position& position);
 
-    // Sélectionne une pièce
+    // Sélectionne la pièce à cette position si elle appartient au joueur courant
     void selectionnerPiece(const Position& position);
 
-    // Demande un déplacement (création de commande)
+    // Crée et exécute la bonne commande (déplacement ou capture)
     void demanderDeplacement(const Position& depart, const Position& arrivee);
 };

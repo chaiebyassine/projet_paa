@@ -1,3 +1,7 @@
+/**
+ * @file fou.cpp
+ * @brief Implémentation de la classe Fou.
+ */
 #include "Fou.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

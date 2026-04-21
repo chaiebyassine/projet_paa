@@ -1,3 +1,7 @@
+/**
+ * @file joueurHumain.cpp
+ * @brief Implémentation de la classe JoueurHumain.
+ */
 #include "JoueurHumain.h"
 #include <iostream>
 

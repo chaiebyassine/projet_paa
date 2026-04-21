@@ -1,3 +1,7 @@
+/**
+ * @file tour.cpp
+ * @brief Implémentation de la classe Tour.
+ */
 #include "Tour.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

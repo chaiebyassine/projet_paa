@@ -5,26 +5,26 @@
 #include "../model/piece/piece.h"
 #include "../model/base/position.h"
 
-// Commande concrète pour un déplacement simple de pièce (sans capture)
-// Hérite de CommandeCoup et implémente executer/annuler
+// Commande qui déplace une pièce sans capture
+// Sait s'annuler en remettant la pièce à sa position initiale
 class CommandeDeplacement : public CommandeCoup {
 protected:
-    Jeu* jeu;               // Référence vers le jeu pour effectuer le déplacement
+    Jeu* jeu;               // Le jeu sur lequel on travaille
     Piece* piece;           // La pièce à déplacer
-    Position depart;        // Position de départ du mouvement
-    Position arrivee;       // Position d'arrivée du mouvement
-    bool executionReussie;  // Indique si le déplacement a réussi (utile pour annuler)
+    Position depart;        // D'où part la pièce
+    Position arrivee;       // Où elle va
+    bool executionReussie;  // Vrai si le déplacement s'est bien passé
 
 public:
-    // Constructeur : initialise la commande avec le jeu, la pièce et les positions
+    // Crée la commande avec tous les paramètres du déplacement
     CommandeDeplacement(Jeu* jeu, Piece* piece, const Position& depart, const Position& arrivee);
 
-    // Exécute le déplacement de la pièce sur le plateau
+    // Lance le déplacement de la pièce
     void executer() override;
 
-    // Annule le déplacement (remet la pièce à sa position initiale)
+    // Remet la pièce à sa case de départ
     void annuler() override;
 
-    // Retourne vrai si l'exécution du déplacement a réussi
+    // Retourne vrai si le déplacement a réussi
     bool getExecutionReussie() const;
 };

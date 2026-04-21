@@ -1,3 +1,7 @@
+/**
+ * @file commandedeplacement.cpp
+ * @brief Implémentation de la classe CommandeDeplacement.
+ */
 #include "commandedeplacement.h"
 
 // Constructeur : initialise tous les attributs, l'exécution n'a pas encore eu lieu

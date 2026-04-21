@@ -2,12 +2,13 @@
 
 #include "Piece.h"
 
-// La Tour : se déplace en ligne droite (horizontalement ou verticalement) sans limite de distance
+// La Tour : se déplace en ligne droite (horizontale ou verticale) sans limite de cases
+// Elle est bloquée si une autre pièce se trouve sur sa trajectoire
 class Tour : public Piece {
 public:
-    // Constructeur : crée une tour à une position donnée
+    // Crée une tour à une position donnée
     Tour(const Position& pos, Couleur coul, Joueur* j);
 
-    // Retourne la liste des mouvements possibles (4 directions rectilignes)
+    // Retourne toutes les cases où la tour peut aller (4 directions rectilignes)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
 };

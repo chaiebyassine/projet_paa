@@ -1,3 +1,7 @@
+/**
+ * @file position.cpp
+ * @brief Implémentation de la classe Position.
+ */
 #include "position.h"
 
 // Constructeur : initialise la ligne et la colonne

@@ -1,3 +1,7 @@
+/**
+ * @file pion.cpp
+ * @brief Implémentation de la classe Pion.
+ */
 #include "Pion.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

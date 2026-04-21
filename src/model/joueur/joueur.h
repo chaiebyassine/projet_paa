@@ -4,22 +4,21 @@
 #include <vector>
 #include "../base/Couleur.h"
 
-class Piece;  // Déclaration anticipée pour éviter l'inclusion circulaire
+class Piece;
 
-// Classe abstraite représentant un joueur du jeu d'échecs
-// Sert de base pour JoueurHumain et JoueurIA
+// Classe mère pour tous les joueurs (humain ou IA)
+// Chaque joueur a un nom, une couleur, une liste de pièces et peut être éliminé
 class Joueur {
 protected:
     std::string nom;              // Nom du joueur
-    Couleur couleur;              // Couleur attribuée au joueur (BLANC, NOIR ou ROUGE)
-    bool estElimine;              // Indique si le joueur est éliminé de la partie
-    std::vector<Piece*> pieces;   // Liste des pièces que le joueur possède encore
+    Couleur couleur;              // Sa couleur (BLANC, NOIR ou ROUGE)
+    bool estElimine;              // Vrai si ce joueur a été éliminé (mat)
+    std::vector<Piece*> pieces;   // Liste de ses pièces encore en jeu
 
 public:
-    // Constructeur : crée un joueur avec un nom et une couleur
+    // Crée un joueur avec un nom et une couleur
     Joueur(const std::string& nom, Couleur couleur);
 
-    // Destructeur virtuel pour permettre la destruction correcte des sous-classes
     virtual ~Joueur() = default;
 
     // Retourne le nom du joueur
@@ -31,15 +30,15 @@ public:
     // Retourne vrai si le joueur est éliminé
     bool getEstElimine() const;
 
-    // Retire une pièce de la liste du joueur (après capture)
+    // Enlève une pièce de la liste (quand elle est capturée)
     void retirerPiece(Piece* p);
 
     // Ajoute une pièce à la liste du joueur
     void ajouterPiece(Piece* p);
 
-    // Retourne la liste des pièces du joueur
+    // Retourne toutes les pièces du joueur encore en jeu
     std::vector<Piece*> getPieces() const;
 
-    // Méthode abstraite : chaque type de joueur implémente sa propre logique de jeu
+    // Le joueur joue son tour (implémenté différemment selon humain ou IA)
     virtual void jouer() = 0;
 };

@@ -2,19 +2,19 @@
 
 #include "Piece.h"
 
-// Le Pion : se déplace d'une case vers l'avant, capture en diagonale
-// Peut avancer de 2 cases au premier coup
+// Le Pion : avance d'une case vers l'avant, capture en diagonale
+// Au premier coup il peut avancer de 2 cases, et il peut être promu en arrivant au bout
 class Pion : public Piece {
 public:
-    // Constructeur : crée un pion à une position donnée
+    // Crée un pion à une position donnée
     Pion(const Position& pos, Couleur coul, Joueur* j);
 
-    // Retourne la liste des mouvements possibles (avancer + captures diagonales)
+    // Retourne toutes les cases où le pion peut aller (avancer + captures diagonales)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
 
-    // Vérifie si le pion peut faire une prise en passant (non implémenté pour l'instant)
+    // Retourne vrai si le pion peut faire une prise en passant
     bool peutFairePriseEnPassant() const;
 
-    // Vérifie si le pion a atteint le bord opposé et peut être promu
+    // Retourne vrai si le pion a atteint la dernière rangée et peut être promu
     bool peutEtrePromu() const;
 };

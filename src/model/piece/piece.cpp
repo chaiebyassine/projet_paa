@@ -1,3 +1,7 @@
+/**
+ * @file piece.cpp
+ * @brief Implémentation des méthodes de la classe Piece.
+ */
 #include "Piece.h"
 
 // Constructeur : initialise la position, la couleur, le joueur, et la pièce n'a pas encore bougé

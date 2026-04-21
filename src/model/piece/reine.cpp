@@ -1,3 +1,7 @@
+/**
+ * @file reine.cpp
+ * @brief Implémentation de la classe Reine.
+ */
 #include "Reine.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"

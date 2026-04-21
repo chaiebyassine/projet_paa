@@ -1,13 +1,13 @@
 #pragma once
 
-// Représente une position sur le plateau avec une ligne et une colonne
+// Représente une case du plateau par ses coordonnées (ligne, colonne)
 class Position {
 private:
     int ligne;    // Numéro de ligne (0 = haut du plateau)
     int colonne;  // Numéro de colonne (0 = gauche du plateau)
 
 public:
-    // Constructeur : crée une position à la ligne l et colonne c
+    // Crée une position aux coordonnées (l, c)
     Position(int l, int c);
 
     // Retourne le numéro de ligne
@@ -16,6 +16,6 @@ public:
     // Retourne le numéro de colonne
     int getColonne() const;
 
-    // Vérifie si la position est valide (coordonnées positives)
+    // Retourne vrai si les deux coordonnées sont >= 0
     bool estValide() const;
 };

@@ -4,23 +4,22 @@
 #include "../base/Position.h"
 #include "../base/Couleur.h"
 
-class Plateau;  // Déclaration anticipée du plateau
-class Joueur;   // Déclaration anticipée du joueur
+class Plateau;
+class Joueur;
 
-// Classe abstraite représentant une pièce d'échecs
-// Classe de base pour Roi, Reine, Tour, Fou, Cavalier et Pion
+// Classe mère de toutes les pièces (Roi, Reine, Tour, Fou, Cavalier, Pion)
+// Chaque pièce connaît sa position, sa couleur, son propriétaire et si elle a déjà bougé
 class Piece {
 protected:
-    Position position;    // Position actuelle de la pièce sur le plateau
+    Position position;    // Où se trouve la pièce sur le plateau
     Couleur couleur;      // Couleur de la pièce (BLANC, NOIR ou ROUGE)
-    Joueur* joueur;       // Pointeur vers le joueur propriétaire de cette pièce
-    bool aDejaBouge;      // Indique si la pièce a déjà été déplacée (utile pour le roque, le pion, etc.)
+    Joueur* joueur;       // Le joueur à qui appartient cette pièce
+    bool aDejaBouge;      // Vrai si la pièce a déjà été déplacée au moins une fois
 
 public:
-    // Constructeur : crée une pièce à une position, avec une couleur et un propriétaire
+    // Crée une pièce à une position donnée, avec une couleur et un propriétaire
     Piece(const Position& pos, Couleur coul, Joueur* j);
 
-    // Destructeur virtuel pour permettre la destruction correcte des sous-classes
     virtual ~Piece() = default;
 
     // Retourne la position actuelle de la pièce
@@ -29,18 +28,19 @@ public:
     // Retourne la couleur de la pièce
     Couleur getCouleur() const;
 
-    // Retourne le joueur propriétaire de la pièce
+    // Retourne le joueur propriétaire
     Joueur* getJoueur() const;
 
-    // Retourne vrai si la pièce a déjà été déplacée
+    // Retourne vrai si la pièce a déjà bougé
     bool getADejaBouge() const;
 
-    // Modifie la position de la pièce
+    // Met à jour la position de la pièce
     void setPosition(const Position& pos);
 
-    // Modifie l'état "a déjà bougé"
+    // Indique que la pièce a bougé (ou pas)
     void setADejaBouge(bool valeur);
 
-    // Méthode abstraite : retourne la liste des positions où la pièce peut se déplacer
+    // Calcule et retourne toutes les cases où la pièce peut aller
+    // Chaque sous-classe implémente ses propres règles de déplacement
     virtual std::vector<Position> mouvementsPossibles(const Plateau& plateau) const = 0;
 };
