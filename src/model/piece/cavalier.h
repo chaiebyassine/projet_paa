@@ -11,4 +11,6 @@ public:
 
     // Retourne toutes les cases où le cavalier peut aller (jusqu'à 8 cases en L)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
+
+    std::string getSymbole() const override { return "C"; }
 };

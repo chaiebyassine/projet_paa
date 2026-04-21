@@ -11,4 +11,6 @@ public:
 
     // Retourne toutes les cases où le fou peut aller (4 diagonales)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
+
+    std::string getSymbole() const override { return "F"; }
 };

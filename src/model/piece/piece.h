@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 #include "../base/Position.h"
 #include "../base/Couleur.h"
 
@@ -43,4 +44,7 @@ public:
     // Calcule et retourne toutes les cases où la pièce peut aller
     // Chaque sous-classe implémente ses propres règles de déplacement
     virtual std::vector<Position> mouvementsPossibles(const Plateau& plateau) const = 0;
+
+    // Retourne le symbole d'une lettre représentant le type de pièce (T, C, F, D, R, P)
+    virtual std::string getSymbole() const = 0;
 };

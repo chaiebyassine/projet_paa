@@ -17,4 +17,6 @@ public:
 
     // Retourne vrai si le pion a atteint la dernière rangée et peut être promu
     bool peutEtrePromu() const;
+
+    std::string getSymbole() const override { return "P"; }
 };

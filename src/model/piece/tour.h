@@ -11,4 +11,6 @@ public:
 
     // Retourne toutes les cases où la tour peut aller (4 directions rectilignes)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
+
+    std::string getSymbole() const override { return "T"; }
 };

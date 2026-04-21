@@ -11,4 +11,6 @@ public:
 
     // Retourne toutes les cases où la reine peut aller (8 directions sans limite)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
+
+    std::string getSymbole() const override { return "D"; }
 };

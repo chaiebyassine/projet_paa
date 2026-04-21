@@ -23,4 +23,10 @@ public:
 
     // Crée et exécute la bonne commande (déplacement ou capture)
     void demanderDeplacement(const Position& depart, const Position& arrivee);
+
+    // Indique si une pièce est actuellement sélectionnée (utile pour la vue)
+    bool aPieceSelectionnee() const { return pieceSelectionnee; }
+
+    // Retourne la position de la pièce sélectionnée (valide seulement si aPieceSelectionnee())
+    Position getPositionSelectionnee() const { return positionSelectionnee; }
 };

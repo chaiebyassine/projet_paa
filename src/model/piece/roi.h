@@ -11,4 +11,6 @@ public:
 
     // Retourne toutes les cases où le roi peut aller (1 case dans chacune des 8 directions)
     std::vector<Position> mouvementsPossibles(const Plateau& plateau) const override;
+
+    std::string getSymbole() const override { return "R"; }
 };
