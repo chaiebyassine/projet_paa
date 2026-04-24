@@ -39,6 +39,9 @@ public:
     // Retourne toutes les pièces du joueur encore en jeu
     std::vector<Piece*> getPieces() const;
 
+    // Marque le joueur comme éliminé (ou non)
+    void setElimine(bool val);
+
     // Le joueur joue son tour (implémenté différemment selon humain ou IA)
     virtual void jouer() = 0;
 };

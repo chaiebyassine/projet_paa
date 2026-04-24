@@ -1,57 +1,30 @@
-/**
- * @file cavalier.cpp
- * @brief Implémentation de la classe Cavalier.
- */
 #include "Cavalier.h"
 #include "../plateau/Plateau.h"
 #include "../plateau/Case.h"
-#include "Piece.h"
+#include "../base/moveHelper.h"
+#include <algorithm>
 
-// Constructeur : initialise le cavalier via la classe Piece
-Cavalier::Cavalier(const Position& pos, Couleur coul, Joueur* j)
-    : Piece(pos, coul, j) {
-}
+Cavalier::Cavalier(const Position& pos, Couleur coul, Joueur* j) : Piece(pos, coul, j) {}
 
-// Calcule tous les mouvements possibles du cavalier
-// Le cavalier se déplace en "L" : 2 cases dans une direction + 1 case perpendiculaire
-// C'est la seule pièce qui peut sauter par-dessus d'autres pièces
+// Cavalier : 8 sauts en L (2 cases ortho + 1 case perpendiculaire)
 std::vector<Position> Cavalier::mouvementsPossibles(const Plateau& plateau) const {
-    std::vector<Position> mouvements;
+    std::vector<Position> moves;
+    auto [x, y] = positionTo2D(position);
+    if (x < 0) return moves;
 
-    // Les 8 déplacements possibles en L
-    const int deplacements[8][2] = {
-        {-2, -1},  // 2 haut, 1 gauche
-        {-2, 1},   // 2 haut, 1 droite
-        {-1, -2},  // 1 haut, 2 gauche
-        {-1, 2},   // 1 haut, 2 droite
-        {1, -2},   // 1 bas, 2 gauche
-        {1, 2},    // 1 bas, 2 droite
-        {2, -1},   // 2 bas, 1 gauche
-        {2, 1}     // 2 bas, 1 droite
-    };
+    // 2 en x + 1 en y
+    MoveHelper::knightHop(plateau, x, y,  1, 0, 0,  1, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y,  1, 0, 0, -1, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y, -1, 0, 0,  1, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y, -1, 0, 0, -1, couleur, moves);
+    // 2 en y + 1 en x
+    MoveHelper::knightHop(plateau, x, y, 0,  1,  1, 0, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y, 0,  1, -1, 0, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y, 0, -1,  1, 0, couleur, moves);
+    MoveHelper::knightHop(plateau, x, y, 0, -1, -1, 0, couleur, moves);
 
-    // Vérifie chaque déplacement en L
-    for (int i = 0; i < 8; ++i) {
-        Position p(
-            position.getLigne() + deplacements[i][0],
-            position.getColonne() + deplacements[i][1]
-        );
-
-        // Vérifie que la case est dans les limites du plateau
-        if (!plateau.estCaseValide(p)) {
-            continue;
-        }
-
-        const Case* c = plateau.obtenirCase(p);
-        if (c == nullptr) {
-            continue;
-        }
-
-        // Le cavalier peut aller sur une case vide ou capturer une pièce adverse
-        if (!c->estOccupee() || c->contientPieceAdverse(couleur)) {
-            mouvements.push_back(p);
-        }
-    }
-
-    return mouvements;
+    // Dédoublonnage
+    std::sort(moves.begin(), moves.end());
+    moves.erase(std::unique(moves.begin(), moves.end()), moves.end());
+    return moves;
 }

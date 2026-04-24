@@ -1,446 +1,557 @@
-﻿#include "vueSFML.h"
+#include "vueSFML.h"
 #include "../model/plateau/case.h"
 #include "../model/piece/piece.h"
 #include "../model/joueur/joueur.h"
 #include <cmath>
 #include <iostream>
-#include <climits>
+#include <stdexcept>
 
-static const float PI = 3.14159265359f;
+static const float PI_F = 3.14159265359f;
 
-static sf::Vector2f milieu(const sf::Vector2f& a, const sf::Vector2f& b) {
-    return (a + b) / 2.f;
+// ── Constructeur ──────────────────────────────────────────────
+VueSFML::VueSFML(Jeu& jeu)
+    : jeu(jeu), controleur(&jeu),
+      window(sf::VideoMode({WIN_W, WIN_H}),
+             "Yalta Chess - 3 joueurs",
+             sf::Style::Titlebar | sf::Style::Close),
+      textGame(font, sf::String(), 22u),
+      textEchec(font, sf::String(), 22u),
+      backButtonText(font, sf::String(), 20u)
+{
+    window.setFramerateLimit(60);
+
+    if (!font.openFromFile("C:\\Windows\\Fonts\\arial.ttf"))
+        (void)font.openFromFile("C:\\Windows\\Fonts\\consola.ttf");
+
+    textGame  = sf::Text(font, "Yalta Chess", 22u);
+    textEchec = sf::Text(font, "", 22u);
+
+    chargerTextures();
+    buildBoard();
+    buildMapping();
+
+    sf::Color beige(0xEE, 0xCF, 0xA1);
+    backButton.setSize({100.f, 40.f});
+    backButton.setPosition({float(WIN_W) - 115.f, 5.f});
+    backButton.setFillColor(beige);
+    backButton.setOutlineColor(sf::Color::Black);
+    backButton.setOutlineThickness(2.f);
+    backButtonText = sf::Text(font, "Accueil", 20u);
+    backButtonText.setFillColor(sf::Color::Black);
+    backButtonText.setPosition({float(WIN_W) - 110.f, 12.f});
 }
 
-static sf::ConvexShape makeLosange(sf::Vector2f p0, sf::Vector2f p1,
-                                    sf::Vector2f p2, sf::Vector2f p3,
-                                    sf::Color fill) {
-    sf::ConvexShape s(4);
-    s.setPoint(0, p0); s.setPoint(1, p1);
-    s.setPoint(2, p2); s.setPoint(3, p3);
-    s.setFillColor(fill);
-    s.setOutlineColor(sf::Color::Black);
-    s.setOutlineThickness(1.5f);
-    return s;
+// ── Textures des pièces ──────────────────────────────────────
+void VueSFML::chargerTextures() {
+    auto load = [&](const std::string& key, const std::string& file) {
+        if (!textures[key].loadFromFile("image/" + file))
+            std::cerr << "Impossible de charger : image/" << file << "\n";
+    };
+    for (const std::string& col : std::vector<std::string>{"White","Red","Black"}) {
+        load(col + "Pawn",   col + "Pawn.png");
+        load(col + "Rook",   col + "Rook.png");
+        load(col + "Knight", col + "Knight.png");
+        load(col + "Bishop", col + "Bishop.png");
+        load(col + "Queen",  col + "Queen.png");
+        load(col + "King",   col + "King.png");
+    }
 }
 
-static sf::Vector2f centreLosange(const sf::ConvexShape& s) {
-    return (s.getPoint(0) + s.getPoint(2)) / 2.f;
+std::string VueSFML::getCleTexture(const Piece* p) const {
+    std::string col;
+    if      (p->getCouleur() == Couleur::BLANC) col = "White";
+    else if (p->getCouleur() == Couleur::ROUGE) col = "Red";
+    else                                         col = "Black";
+    const std::string& s = p->getSymbole();
+    if (s == "P") return col + "Pawn";
+    if (s == "T") return col + "Rook";
+    if (s == "C") return col + "Knight";
+    if (s == "F") return col + "Bishop";
+    if (s == "D") return col + "Queen";
+    if (s == "R") return col + "King";
+    return "";
 }
 
-static bool pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) {
+// ── buildBoard — dessine hexagone + 6 matrices × 16 losanges + labels ──
+void VueSFML::buildBoard() {
+    // Grand hexagone (blanc au fond noir)
+    std::vector<float> side_lengths = {450, 460, 460, 450, 460, 460};
+    std::vector<sf::Vector2f> points;
+    float angle = 0;
+    sf::Vector2f origin(350, 150);
+    points.push_back(origin + sf::Vector2f(side_lengths[0], 0));
+    for (int i = 1; i < 6; i++) {
+        angle += PI_F / 3;
+        points.push_back(points.back() +
+            sf::Vector2f(std::cos(angle), std::sin(angle)) * side_lengths[i]);
+    }
+    hexagon.setPointCount(6);
+    for (size_t i = 0; i < 6; i++) hexagon.setPoint(i, points[i]);
+    hexagon.setFillColor(sf::Color::Transparent);
+    hexagon.setOutlineColor(sf::Color::White);
+    hexagon.setOutlineThickness(2.f);
+
+    sf::Vector2f center(0, 0);
+    for (const auto& p : points) center += p;
+    center /= float(points.size());
+    boardCenter = center;
+
+    // Hexagone extérieur (bordure noire épaisse)
+    std::vector<sf::Vector2f> points2;
+    std::vector<float> side_lengths2 = {500, 510, 510, 500, 510, 510};
+    points2.push_back(origin + sf::Vector2f(side_lengths2[0], 0));
+    for (int i = 1; i < 6; i++) {
+        angle += PI_F / 3;
+        points2.push_back(points2.back() +
+            sf::Vector2f(std::cos(angle), std::sin(angle)) * side_lengths2[i]);
+    }
+    sf::Vector2f center2(0, 0);
+    for (const auto& p : points2) center2 += p;
+    center2 /= float(points2.size());
+    sf::Vector2f offset = center - center2;
+    for (auto& p : points2) p += offset;
+
+    hexagon2.setPointCount(6);
+    for (size_t i = 0; i < 6; i++) hexagon2.setPoint(i, points2[i]);
+    hexagon2.setFillColor(sf::Color::White);
+    hexagon2.setOutlineColor(sf::Color::Black);
+    hexagon2.setOutlineThickness(7.f);
+
+    // Milieux des arêtes
+    std::vector<sf::Vector2f> milieux = {
+        milieu(points[4], points[3]),
+        milieu(points[3], points[2]),
+        milieu(points[0], points[1]),
+        milieu(points[0], points[5]),
+        milieu(points[5], points[4]),
+        milieu(points[1], points[2])
+    };
+
+    // Lignes de séparation des 6 matrices (depuis le centre vers chaque milieu)
+    lines.clear();
+    for (const auto& m : milieux)
+        lines.push_back(createLine(center, m, sf::Color::Red));
+
+    // Subdivision en losanges pour chaque matrice
+    auto mat1_lines = createMatrixLines(center, milieux[1], milieux[0], points[3], points[4], points[2]);
+    auto mat2_lines = createMatrixLines(center, milieux[5], milieux[1], points[2], points[3], points[1]);
+    auto mat3_lines = createMatrixLines(center, milieux[0], milieux[4], points[4], points[5], points[3]);
+    auto mat4_lines = createMatrixLines(center, milieux[4], milieux[3], points[5], points[0], points[4]);
+    auto mat5_lines = createMatrixLines(center, milieux[2], milieux[5], points[1], points[2], points[0]);
+    auto mat6_lines = createMatrixLines(center, milieux[3], milieux[2], points[0], points[1], points[5]);
+
+    sf::Color blanc(0xFE, 0xF7, 0xE5);
+    sf::Color beige(0xEE, 0xCF, 0xA1);
+    matrice1 = createMatrixLosange(center, mat1_lines, points[3], milieux[1], milieux[0], beige, blanc);
+    matrice2 = createMatrixLosange(center, mat2_lines, points[2], milieux[5], milieux[1], blanc, beige);
+    matrice3 = createMatrixLosange(center, mat3_lines, points[4], milieux[0], milieux[4], blanc, beige);
+    matrice4 = createMatrixLosange(center, mat4_lines, points[5], milieux[4], milieux[3], beige, blanc);
+    matrice5 = createMatrixLosange(center, mat5_lines, points[1], milieux[2], milieux[5], beige, blanc);
+    matrice6 = createMatrixLosange(center, mat6_lines, points[0], milieux[3], milieux[2], blanc, beige);
+
+    // Labels autour du plateau (a-h, i-l, 1-12) identiques à projetexp
+    std::vector<std::string> lettresBas         = {"a","b","c","d","e","f","g","h"};
+    std::vector<std::string> lettresHaut        = {"8","7","6","5","9","10","11","12"};
+    std::vector<std::string> chiffresBasGauche  = {"1","2","3","4","5","6","7","8"};
+    std::vector<std::string> lettresHautDroite  = {"h","g","f","e","i","j","k","l"};
+    std::vector<std::string> lettresHautGauche  = {"l","k","j","i","d","c","b","a"};
+    std::vector<std::string> lettresBasDroite   = {"1","2","3","4","9","10","11","12"};
+
+    sf::Vector2f startBas        = milieu(points[3], points2[4]) - sf::Vector2f(-30.f, 18.f);
+    sf::Vector2f startHaut       = milieu(points[5], points2[0]) - sf::Vector2f(-30.f, 18.f);
+    sf::Vector2f startBasGauche  = milieu(points[4], points2[5]) + sf::Vector2f(213.f, 370.f);
+    sf::Vector2f startHautDroite = milieu(points[0], points2[1]) + sf::Vector2f(213.f, 360.f);
+    sf::Vector2f startHautGauche = milieu(points[5], points2[0]) - sf::Vector2f(35.f, -15.f);
+    sf::Vector2f startBasDroite  = milieu(points[2], points2[3]) + sf::Vector2f(7.f, -55.f);
+
+    coordText.clear();
+    for (size_t i = 0; i < 8; ++i) {
+        coordText.push_back(createText(lettresBas[i],
+            startBas + sf::Vector2f(i * 57.0f, 0.f), 28, sf::Color::Black));
+        if (i > 4) {
+            coordText.push_back(createText(lettresHaut[i],
+                startHaut + sf::Vector2f(i * 56.0f, 0.f), 28, sf::Color::Black));
+        } else {
+            coordText.push_back(createText(lettresHaut[i],
+                startHaut + sf::Vector2f(i * 57.0f, 0.f), 28, sf::Color::Black));
+        }
+        coordText.push_back(createText(chiffresBasGauche[i],
+            startBasGauche - sf::Vector2f(i * 29.0f, i * 50.0f), 28, sf::Color::Black));
+        coordText.push_back(createText(lettresHautDroite[i],
+            startHautDroite - sf::Vector2f(i * 29.0f, i * 50.0f), 28, sf::Color::Black));
+        coordText.push_back(createText(lettresHautGauche[i],
+            startHautGauche + sf::Vector2f(7.f - i * 29.0f, i * 50.0f), 28, sf::Color::Black));
+        if (i > 4) {
+            coordText.push_back(createText(lettresBasDroite[i],
+                startBasDroite + sf::Vector2f(i * 28.0f, 7.f - i * 50.0f), 28, sf::Color::Black));
+        } else {
+            coordText.push_back(createText(lettresBasDroite[i],
+                startBasDroite + sf::Vector2f(i * 29.0f, 7.f - i * 50.0f), 28, sf::Color::Black));
+        }
+    }
+}
+
+// ── Mapping Position cubique ↔ (matrice, losange) ─────────────
+// BLANC (mat1+mat2) : s=4-depth, r=-col, q=col+depth-4
+// ROUGE (mat4+mat3) : q=4-depth, s=-col, r=col+depth-4
+// NOIR  (mat5+mat6) : r=4-depth, q=-col, s=col+depth-4
+void VueSFML::buildMapping() {
+    posToTile.clear();
+    tileToPos.clear();
+
+    auto add = [&](int q, int r, int s, int mat, int los) {
+        Position p(q, r, s);
+        posToTile[p] = {mat, los};
+        tileToPos[{mat, los}] = p;
+    };
+
+    // BLANC — mat1 (col 0..3) + mat2 (col 4..7)
+    for (int d = 0; d <= 3; ++d) {
+        for (int c = 0; c <= 7; ++c) {
+            int s = 4 - d, r = -c, q = c + d - 4;
+            if (c < 4)
+                add(q, r, s, 1, 15 - 4*c - d);
+            else
+                add(q, r, s, 2, 4*(3 - d) + (c - 4));
+        }
+    }
+    // ROUGE — mat4 (col 0..3) + mat3 (col 4..7)
+    for (int d = 0; d <= 3; ++d) {
+        for (int c = 0; c <= 7; ++c) {
+            int q = 4 - d, s = -c, r = c + d - 4;
+            if (c < 4)
+                add(q, r, s, 4, 15 - 4*c - d);
+            else
+                add(q, r, s, 3, 4*(3 - d) + (c - 4));
+        }
+    }
+    // NOIR — mat5 (col 0..3) + mat6 (col 4..7)
+    for (int d = 0; d <= 3; ++d) {
+        for (int c = 0; c <= 7; ++c) {
+            int r = 4 - d, q = -c, s = c + d - 4;
+            if (c < 4)
+                add(q, r, s, 5, 15 - 4*c - d);
+            else
+                add(q, r, s, 6, 4*(3 - d) + (c - 4));
+        }
+    }
+}
+
+// ── Rendu ────────────────────────────────────────────────────
+void VueSFML::clear() {
+    window.clear(sf::Color(48, 46, 43));
+}
+
+void VueSFML::drawBoard() {
+    window.draw(hexagon2);
+    for (const auto& l : matrice1) window.draw(l);
+    for (const auto& l : matrice2) window.draw(l);
+    for (const auto& l : matrice3) window.draw(l);
+    for (const auto& l : matrice4) window.draw(l);
+    for (const auto& l : matrice5) window.draw(l);
+    for (const auto& l : matrice6) window.draw(l);
+    for (const auto& line : lines)
+        window.draw(line.data(), line.size(), sf::PrimitiveType::Lines);
+    window.draw(hexagon);
+}
+
+void VueSFML::drawCoords() {
+    for (const auto& t : coordText) window.draw(t);
+}
+
+void VueSFML::drawPieces() {
+    for (const auto& [pos, tile] : posToTile) {
+        const Case* ca = jeu.getPlateau().obtenirCase(pos);
+        if (!ca || !ca->estOccupee()) continue;
+        const Piece* p = ca->getPiece();
+        const sf::ConvexShape* los = getLosange(tile.first, tile.second);
+        if (!los) continue;
+
+        sf::Vector2f centre = calculerCentreLosange(*los);
+        std::string cle = getCleTexture(p);
+        bool hasTex = !cle.empty() && textures.count(cle) &&
+                      textures.at(cle).getSize().x > 0;
+
+        if (hasTex) {
+            sf::Sprite sprite(textures.at(cle));
+            sf::Vector2u ts = textures.at(cle).getSize();
+            float scale = 50.f / float(std::max(ts.x, ts.y));
+            sprite.setScale({scale, scale});
+            auto bnd = sprite.getGlobalBounds();
+            sprite.setPosition({centre.x - bnd.size.x * .5f,
+                                centre.y - bnd.size.y * .5f});
+            window.draw(sprite);
+        } else {
+            float rad = 18.f;
+            sf::CircleShape circ(rad);
+            circ.setOrigin({rad, rad});
+            circ.setPosition(centre);
+            if      (p->getCouleur() == Couleur::BLANC) circ.setFillColor(sf::Color(240,235,218));
+            else if (p->getCouleur() == Couleur::ROUGE) circ.setFillColor(sf::Color(210,55,55));
+            else                                         circ.setFillColor(sf::Color(22,22,22));
+            circ.setOutlineColor(sf::Color(0,0,0,160));
+            circ.setOutlineThickness(1.5f);
+            window.draw(circ);
+            sf::Text t(font, p->getSymbole(), 14u);
+            t.setFillColor(p->getCouleur() == Couleur::BLANC
+                           ? sf::Color(10,10,10) : sf::Color(240,240,240));
+            auto b = t.getGlobalBounds();
+            t.setPosition({centre.x - b.size.x*.5f - b.position.x,
+                           centre.y - b.size.y*.5f - b.position.y});
+            window.draw(t);
+        }
+    }
+}
+
+void VueSFML::drawHighlights() {
+    if (!controleur.aPieceSelectionnee()) return;
+    Position sel = controleur.getPositionSelectionnee();
+
+    auto it = posToTile.find(sel);
+    if (it != posToTile.end()) {
+        const sf::ConvexShape* los = getLosange(it->second.first, it->second.second);
+        if (los) {
+            sf::ConvexShape hl = *los;
+            hl.setFillColor(sf::Color(255, 220, 40, 210));
+            window.draw(hl);
+        }
+    }
+
+    const Case* ca = jeu.getPlateau().obtenirCase(sel);
+    if (ca && ca->estOccupee()) {
+        for (const auto& mv : ca->getPiece()->mouvementsPossibles(jeu.getPlateau())) {
+            auto jt = posToTile.find(mv);
+            if (jt == posToTile.end()) continue;
+            const sf::ConvexShape* los = getLosange(jt->second.first, jt->second.second);
+            if (!los) continue;
+            sf::ConvexShape d = *los;
+            d.setFillColor(sf::Color(50, 200, 50, 170));
+            window.draw(d);
+        }
+    }
+}
+
+void VueSFML::drawInfo() {
+    float py = float(WIN_H - INFO_H);
+    sf::RectangleShape panel({float(WIN_W), float(INFO_H)});
+    panel.setPosition({0.f, py});
+    panel.setFillColor(sf::Color(16, 14, 11));
+    window.draw(panel);
+
+    sf::RectangleShape sep({float(WIN_W), 2.f});
+    sep.setPosition({0.f, py});
+    sep.setFillColor(sf::Color(75, 60, 40));
+    window.draw(sep);
+
+    Joueur* j = jeu.getJoueurCourant();
+    if (j) {
+        sf::Color ct;
+        std::string cn;
+        if      (j->getCouleur() == Couleur::BLANC) { cn = "Blanc"; ct = sf::Color(240,235,218); }
+        else if (j->getCouleur() == Couleur::ROUGE) { cn = "Rouge"; ct = sf::Color(220,80,80);   }
+        else                                         { cn = "Noir";  ct = sf::Color(130,200,130); }
+        sf::Text t(font, "Tour : " + cn + "  (" + j->getNom() + ")", 18u);
+        t.setFillColor(ct);
+        t.setPosition({16.f, py + 8.f});
+        window.draw(t);
+    }
+    sf::Text hint(font, "Clic gauche : selectionner / deplacer", 12u);
+    hint.setFillColor(sf::Color(95, 85, 65));
+    hint.setPosition({16.f, py + 38.f});
+    window.draw(hint);
+}
+
+void VueSFML::drawBackButton() {
+    window.draw(backButton);
+    window.draw(backButtonText);
+}
+
+// ── Hit-test souris ──────────────────────────────────────────
+Position VueSFML::sourisVersPosition(int mx, int my) const {
+    sf::Vector2f pt{float(mx), float(my)};
+    const std::vector<const std::vector<sf::ConvexShape>*> all = {
+        &matrice1, &matrice2, &matrice3, &matrice4, &matrice5, &matrice6
+    };
+    for (int m = 0; m < 6; ++m) {
+        const auto& mat = *all[m];
+        for (int i = 0; i < (int)mat.size(); ++i) {
+            if (pointDansLosange(mat[i], pt)) {
+                auto it = tileToPos.find({m + 1, i});
+                if (it != tileToPos.end()) return it->second;
+            }
+        }
+    }
+    return INVALID_POS();
+}
+
+// ── Accès matrices / losanges ────────────────────────────────
+std::vector<sf::ConvexShape>& VueSFML::getMatrice(int mat) {
+    switch (mat) {
+        case 1: return matrice1;
+        case 2: return matrice2;
+        case 3: return matrice3;
+        case 4: return matrice4;
+        case 5: return matrice5;
+        case 6: return matrice6;
+        default: throw std::out_of_range("Index de matrice invalide");
+    }
+}
+
+const sf::ConvexShape* VueSFML::getLosange(int mat, int los) const {
+    const std::vector<const std::vector<sf::ConvexShape>*> all = {
+        &matrice1, &matrice2, &matrice3, &matrice4, &matrice5, &matrice6
+    };
+    if (mat < 1 || mat > 6) return nullptr;
+    const auto& m = *all[mat - 1];
+    if (los < 0 || los >= (int)m.size()) return nullptr;
+    return &m[los];
+}
+
+sf::Vector2f VueSFML::calculerCentreLosange(const sf::ConvexShape& s) const {
+    return {(s.getPoint(0).x + s.getPoint(2).x) * 0.5f,
+            (s.getPoint(0).y + s.getPoint(2).y) * 0.5f};
+}
+
+bool VueSFML::pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) const {
     int n = (int)s.getPointCount();
     bool inside = false;
-    for (int i = 0, j = n-1; i < n; j = i++) {
-        sf::Vector2f pi = s.getPoint(i), pj = s.getPoint(j);
+    for (int i = 0, j = n - 1; i < n; j = i++) {
+        sf::Vector2f pi = s.getPoint(i);
+        sf::Vector2f pj = s.getPoint(j);
         if (((pi.y > pt.y) != (pj.y > pt.y)) &&
-            (pt.x < (pj.x-pi.x)*(pt.y-pi.y)/(pj.y-pi.y)+pi.x))
+            (pt.x < (pj.x - pi.x) * (pt.y - pi.y) / (pj.y - pi.y) + pi.x))
             inside = !inside;
     }
     return inside;
 }
-std::string VueSFML::getCleTexture(const Piece* p) const {
-    std::string couleur;
 
-    if (p->getCouleur() == Couleur::BLANC)
-        couleur = "White";
-    else if (p->getCouleur() == Couleur::ROUGE)
-        couleur = "Red";
-    else
-        couleur = "Black";
-
-    std::string symbole = p->getSymbole();
-
-    if (symbole == "P") return couleur + "Pawn";
-    if (symbole == "T") return couleur + "Rook";
-    if (symbole == "C") return couleur + "Knight";
-    if (symbole == "F") return couleur + "Bishop";
-    if (symbole == "D") return couleur + "Queen";
-    if (symbole == "R") return couleur + "King";
-
-    return "";
+// ── Helpers de construction (adaptés de MakeBoard) ───────────
+sf::Vector2f VueSFML::milieu(const sf::Vector2f& a, const sf::Vector2f& b) const {
+    return (a + b) / 2.f;
 }
-static std::vector<sf::Vector2f> createMatrixLines(
+
+std::array<sf::Vertex, 2> VueSFML::createLine(const sf::Vector2f& a,
+                                              const sf::Vector2f& b,
+                                              sf::Color c) const {
+    std::array<sf::Vertex, 2> arr;
+    arr[0].position = a; arr[0].color = c;
+    arr[1].position = b; arr[1].color = c;
+    return arr;
+}
+
+std::vector<sf::Vector2f> VueSFML::createMatrixLines(
     const sf::Vector2f& center,
-    const sf::Vector2f& mil1, const sf::Vector2f& mil2,
-    const sf::Vector2f& pt1,  const sf::Vector2f& pt2, const sf::Vector2f& pt3)
+    const sf::Vector2f& m1, const sf::Vector2f& m2,
+    const sf::Vector2f& p1, const sf::Vector2f& p2,
+    const sf::Vector2f& p3) const
 {
-    std::vector<sf::Vector2f> lines;
-    for (float r : {0.25f, 0.50f, 0.75f}) {
-        lines.push_back(center + r*(mil1 - center));
-        lines.push_back((1-(1-r)/2)*pt1 + ((1-r)/2)*pt2);
+    std::vector<sf::Vector2f> res;
+    for (float ratio : {0.25f, 0.50f, 0.75f}) {
+        res.push_back(center + ratio * (m1 - center));
+        res.push_back((1 - (1 - ratio) / 2) * p1 + ((1 - ratio) / 2) * p2);
     }
-    for (float r : {0.25f, 0.50f, 0.75f}) {
-        lines.push_back(center + r*(mil2 - center));
-        lines.push_back((1-(1+r)/2)*pt3 + ((1+r)/2)*pt1);
+    for (float ratio : {0.25f, 0.50f, 0.75f}) {
+        res.push_back(center + ratio * (m2 - center));
+        res.push_back((1 - (1 + ratio) / 2) * p3 + ((1 + ratio) / 2) * p1);
     }
-    return lines;
+    return res;
 }
 
-static std::vector<sf::ConvexShape> createMatrixLosange(
+sf::ConvexShape VueSFML::createLosange(
+    const sf::Vector2f& p1, const sf::Vector2f& p2,
+    const sf::Vector2f& p3, const sf::Vector2f& p4,
+    sf::Color fill, sf::Color outline) const
+{
+    sf::ConvexShape l;
+    l.setPointCount(4);
+    l.setPoint(0, p1);
+    l.setPoint(1, p2);
+    l.setPoint(2, p3);
+    l.setPoint(3, p4);
+    l.setFillColor(fill);
+    l.setOutlineColor(outline);
+    l.setOutlineThickness(2.f);
+    return l;
+}
+
+std::vector<sf::ConvexShape> VueSFML::createMatrixLosange(
     const sf::Vector2f& center,
-    const std::vector<sf::Vector2f>& ml,
+    const std::vector<sf::Vector2f>& L,
     const sf::Vector2f& point,
-    const sf::Vector2f& mil1, const sf::Vector2f& mil2,
-    sf::Color c1, sf::Color c2)
+    const sf::Vector2f& m1, const sf::Vector2f& m2,
+    sf::Color c1, sf::Color c2) const
 {
-    std::vector<sf::ConvexShape> s;
-    // Rang 0 (centre) -> idx 0..3
-    s.push_back(makeLosange(center, ml[0], ml[6]+0.25f*(ml[7]-ml[6]), ml[6], c1));
-    s.push_back(makeLosange(ml[0], ml[2], ml[6]+0.5f*(ml[7]-ml[6]), ml[6]+0.25f*(ml[7]-ml[6]), c2));
-    s.push_back(makeLosange(ml[2], ml[4], ml[6]+0.75f*(ml[7]-ml[6]), ml[6]+0.5f*(ml[7]-ml[6]), c1));
-    s.push_back(makeLosange(ml[4], mil1,  ml[7], ml[6]+0.75f*(ml[7]-ml[6]), c2));
-    // Rang 1 -> idx 4..7
-    s.push_back(makeLosange(ml[6], ml[6]+0.25f*(ml[7]-ml[6]), ml[8]+0.25f*(ml[9]-ml[8]), ml[8], c2));
-    s.push_back(makeLosange(ml[6]+0.25f*(ml[7]-ml[6]), ml[6]+0.5f*(ml[7]-ml[6]), ml[8]+0.5f*(ml[9]-ml[8]), ml[8]+0.25f*(ml[9]-ml[8]), c1));
-    s.push_back(makeLosange(ml[6]+0.5f*(ml[7]-ml[6]), ml[6]+0.75f*(ml[7]-ml[6]), ml[8]+0.75f*(ml[9]-ml[8]), ml[8]+0.5f*(ml[9]-ml[8]), c2));
-    s.push_back(makeLosange(ml[6]+0.75f*(ml[7]-ml[6]), ml[7], ml[9], ml[8]+0.75f*(ml[9]-ml[8]), c1));
-    // Rang 2 -> idx 8..11
-    s.push_back(makeLosange(ml[8], ml[8]+0.25f*(ml[9]-ml[8]), ml[10]+0.25f*(ml[11]-ml[10]), ml[10], c1));
-    s.push_back(makeLosange(ml[8]+0.25f*(ml[9]-ml[8]), ml[8]+0.5f*(ml[9]-ml[8]), ml[10]+0.5f*(ml[11]-ml[10]), ml[10]+0.25f*(ml[11]-ml[10]), c2));
-    s.push_back(makeLosange(ml[8]+0.5f*(ml[9]-ml[8]), ml[8]+0.75f*(ml[9]-ml[8]), ml[10]+0.75f*(ml[11]-ml[10]), ml[10]+0.5f*(ml[11]-ml[10]), c1));
-    s.push_back(makeLosange(ml[8]+0.75f*(ml[9]-ml[8]), ml[9], ml[11], ml[10]+0.75f*(ml[11]-ml[10]), c2));
-    // Rang 3 (bord) -> idx 12..15
-    s.push_back(makeLosange(ml[10], ml[10]+0.25f*(ml[11]-ml[10]), ml[1],  mil2, c2));
-    s.push_back(makeLosange(ml[10]+0.25f*(ml[11]-ml[10]), ml[10]+0.5f*(ml[11]-ml[10]), ml[3], ml[1], c1));
-    s.push_back(makeLosange(ml[10]+0.5f*(ml[11]-ml[10]), ml[10]+0.75f*(ml[11]-ml[10]), ml[5], ml[3], c2));
-    s.push_back(makeLosange(ml[10]+0.75f*(ml[11]-ml[10]), ml[5], point, ml[11], c1));
-    return s;
+    std::vector<sf::ConvexShape> shapes;
+    // Ligne 0 (près du centre)
+    shapes.push_back(createLosange(center, L[0], L[6] + 0.25f*(L[7]-L[6]), L[6], c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[0], L[2], L[6] + 0.5f*(L[7]-L[6]), L[6] + 0.25f*(L[7]-L[6]), c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[2], L[4], L[6] + 0.75f*(L[7]-L[6]), L[6] + 0.5f*(L[7]-L[6]), c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[4], m1, L[7], L[6] + 0.75f*(L[7]-L[6]), c2, sf::Color::Black));
+    // Ligne 1
+    shapes.push_back(createLosange(L[6], L[6] + 0.25f*(L[7]-L[6]), L[8] + 0.25f*(L[9]-L[8]), L[8], c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[6] + 0.25f*(L[7]-L[6]), L[6] + 0.5f*(L[7]-L[6]), L[8] + 0.5f*(L[9]-L[8]), L[8] + 0.25f*(L[9]-L[8]), c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[6] + 0.5f*(L[7]-L[6]), L[6] + 0.75f*(L[7]-L[6]), L[8] + 0.75f*(L[9]-L[8]), L[8] + 0.5f*(L[9]-L[8]), c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[6] + 0.75f*(L[7]-L[6]), L[7], L[9], L[8] + 0.75f*(L[9]-L[8]), c1, sf::Color::Black));
+    // Ligne 2
+    shapes.push_back(createLosange(L[8], L[8] + 0.25f*(L[9]-L[8]), L[10] + 0.25f*(L[11]-L[10]), L[10], c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[8] + 0.25f*(L[9]-L[8]), L[8] + 0.5f*(L[9]-L[8]), L[10] + 0.5f*(L[11]-L[10]), L[10] + 0.25f*(L[11]-L[10]), c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[8] + 0.5f*(L[9]-L[8]), L[8] + 0.75f*(L[9]-L[8]), L[10] + 0.75f*(L[11]-L[10]), L[10] + 0.5f*(L[11]-L[10]), c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[8] + 0.75f*(L[9]-L[8]), L[9], L[11], L[10] + 0.75f*(L[11]-L[10]), c2, sf::Color::Black));
+    // Ligne 3 (vers l'apex)
+    shapes.push_back(createLosange(L[10], L[10] + 0.25f*(L[11]-L[10]), L[1], m2, c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[10] + 0.25f*(L[11]-L[10]), L[10] + 0.5f*(L[11]-L[10]), L[3], L[1], c1, sf::Color::Black));
+    shapes.push_back(createLosange(L[10] + 0.5f*(L[11]-L[10]), L[10] + 0.75f*(L[11]-L[10]), L[5], L[3], c2, sf::Color::Black));
+    shapes.push_back(createLosange(L[10] + 0.75f*(L[11]-L[10]), L[5], point, L[11], c1, sf::Color::Black));
+    return shapes;
 }
 
-// ============================================================
-// Constructeur
-// ============================================================
-VueSFML::VueSFML(Jeu& jeu)
-    : jeu(jeu), controleur(&jeu),
-      window(sf::VideoMode({WIN_W, WIN_H}), "Yalta Chess",
-             sf::Style::Titlebar | sf::Style::Close)
+sf::Text VueSFML::createText(const std::string& s, sf::Vector2f pos,
+                              unsigned size, sf::Color col)
 {
-    window.setFramerateLimit(60);
-    if (!font.openFromFile("C:\\Windows\\Fonts\\arial.ttf"))
-        (void)font.openFromFile("C:\\Windows\\Fonts\\consola.ttf");
-
-    chargerTextures();
-    buildBoard();
+    sf::Text t(font, s, size);
+    t.setFillColor(col);
+    t.setPosition(pos);
+    return t;
 }
 
-// ============================================================
-// buildBoard
-// ============================================================
-void VueSFML::buildBoard() {
-    std::vector<float> sides  = {450,460,460,450,460,460};
-    std::vector<float> sides2 = {500,510,510,500,510,510};
-
-    sf::Vector2f origin(350.f, 150.f);
-
-    std::vector<sf::Vector2f> pts;
-    pts.push_back(origin + sf::Vector2f(sides[0], 0));
-    float ang = 0;
-    for (int i = 1; i < 6; i++) {
-        ang += PI/3;
-        pts.push_back(pts.back() + sf::Vector2f(std::cos(ang),std::sin(ang))*sides[i]);
-    }
-
-    sf::Vector2f ctr(0,0);
-    for (auto& p : pts) ctr += p;
-    ctr /= 6.f;
-
-    std::vector<sf::Vector2f> pts2;
-    pts2.push_back(origin + sf::Vector2f(sides2[0], 0));
-    ang = 0;
-    for (int i = 1; i < 6; i++) {
-        ang += PI/3;
-        pts2.push_back(pts2.back() + sf::Vector2f(std::cos(ang),std::sin(ang))*sides2[i]);
-    }
-    sf::Vector2f ctr2(0,0);
-    for (auto& p : pts2) ctr2 += p;
-    ctr2 /= 6.f;
-    sf::Vector2f off = ctr - ctr2;
-    for (auto& p : pts2) p += off;
-
-    hexBorder.setPointCount(6);
-    for (int i = 0; i < 6; i++) hexBorder.setPoint(i, pts[i]);
-    hexBorder.setFillColor(sf::Color::Transparent);
-    hexBorder.setOutlineColor(sf::Color::White);
-    hexBorder.setOutlineThickness(2);
-
-    hexFill.setPointCount(6);
-    for (int i = 0; i < 6; i++) hexFill.setPoint(i, pts2[i]);
-    hexFill.setFillColor(sf::Color(48,46,43));
-    hexFill.setOutlineColor(sf::Color::Black);
-    hexFill.setOutlineThickness(7);
-
-    sf::Vector2f mils[6] = {
-        milieu(pts[4],pts[3]),
-        milieu(pts[3],pts[2]),
-        milieu(pts[0],pts[1]),
-        milieu(pts[0],pts[5]),
-        milieu(pts[5],pts[4]),
-        milieu(pts[1],pts[2])
-    };
-
-    // Couleurs
-    sf::Color blancCl(180,200,255), blancFc(50,90,200);
-    sf::Color rougeCl(255,180,180), rougeFc(190,60,60);
-    sf::Color noirCl (160,210,160), noirFc (30,110,30);
-
-    auto ml1 = createMatrixLines(ctr, mils[1], mils[0], pts[3], pts[4], pts[2]);
-    auto ml2 = createMatrixLines(ctr, mils[5], mils[1], pts[2], pts[3], pts[1]);
-    auto ml3 = createMatrixLines(ctr, mils[0], mils[4], pts[4], pts[5], pts[3]);
-    auto ml4 = createMatrixLines(ctr, mils[4], mils[3], pts[5], pts[0], pts[4]);
-    auto ml5 = createMatrixLines(ctr, mils[2], mils[5], pts[1], pts[2], pts[0]);
-    auto ml6 = createMatrixLines(ctr, mils[3], mils[2], pts[0], pts[1], pts[5]);
-
-    // matrices 0-1 = BLANC (bleu)
-    // matrices 2-3 = ROUGE (rouge)
-    // matrices 4-5 = NOIR  (vert)
-    matrices[0] = createMatrixLosange(ctr, ml1, pts[3], mils[1], mils[0], blancFc, blancCl);
-    matrices[1] = createMatrixLosange(ctr, ml2, pts[2], mils[5], mils[1], blancCl, blancFc);
-    matrices[2] = createMatrixLosange(ctr, ml3, pts[4], mils[0], mils[4], rougeCl, rougeFc);
-    matrices[3] = createMatrixLosange(ctr, ml4, pts[5], mils[4], mils[3], rougeFc, rougeCl);
-    matrices[4] = createMatrixLosange(ctr, ml5, pts[1], mils[2], mils[5], noirFc,  noirCl );
-    matrices[5] = createMatrixLosange(ctr, ml6, pts[0], mils[3], mils[2], noirCl,  noirFc );
-
-    // ============================================================
-    // Mapping modele -> losange
-    //
-    // idx = rc + 4 * rl
-    //   rc = c % 4  (colonne locale 0..3)
-    //   rl = rang   (0=centre, 3=bord)
-    //
-    // BLANC (l=0..3) : mat=(c<4)?0:1,  rl=3-l
-    // ROUGE (l=4..7) : mat=(c<4)?2:3,  rl=l-4
-    // NOIR (l=8..11) : mat=(c<4)?4:5,  rl=l-8
- for (int l = 0; l < 12; l++) {
-    for (int c = 0; c < 8; c++) {
-        int rc = c % 4;
-        int mat = -1;
-        int rl  = -1;
-        int idx = -1;
-
-        if (l < 4) {
-            // BLANC -> bas
-            rl = 3 - l;
-
-            if (c < 4) {
-                mat = 0;
-                idx = (3 - rc) * 4 + rl;
-            } else {
-                mat = 1;
-                idx = rc + 4 * rl;
-            }
-        }
-       else if (l < 8) {
-    // ROUGE -> gauche
-    rl = l - 4;
-
-    if (c < 4) {
-        // moitié gauche
-        mat = 2;
-        idx = rc + 4 * rl;
-    } else {
-        // moitié droite (CONTINUE dans le même sens)
-        mat = 3;
-        idx = (c - 4) + 4 * rl;
-    }
-}
-        else {
-            // NOIR -> droite
-            rl = l - 8;
-
-            if (c < 4) {
-                mat = 4;
-                idx = (3 - rc) * 4 + rl;
-            } else {
-                mat = 5;
-                idx = rc + 4 * rl;
-            }
-        }
-
-        caseVersLosange[l][c] = {mat, idx};
-    }
-}
-    // Table inverse
-    for (int m = 0; m < 6; m++)
-        for (int i = 0; i < 16; i++)
-            losangeVersCase[m][i] = {-1,-1};
-
-    for (int l = 0; l < 12; l++)
-        for (int c = 0; c < 8; c++) {
-            auto [m, i] = caseVersLosange[l][c];
-            if (m >= 0 && i >= 0 && i < 16)
-                losangeVersCase[m][i] = {l,c};
-        }
-}
-
-// ============================================================
-// run()
-// ============================================================
+// ── Boucle principale ────────────────────────────────────────
 void VueSFML::run() {
     while (window.isOpen()) {
-        while (const auto event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>())
+        while (const auto ev = window.pollEvent()) {
+            if (ev->is<sf::Event::Closed>())
                 window.close();
-            if (const auto* mb = event->getIf<sf::Event::MouseButtonPressed>()) {
+            if (const auto* mb = ev->getIf<sf::Event::MouseButtonPressed>()) {
                 if (mb->button == sf::Mouse::Button::Left) {
                     Position pos = sourisVersPosition(mb->position.x, mb->position.y);
-                    if (pos.getLigne() >= 0)
+                    std::cerr << "[CLICK] pixel=(" << mb->position.x << "," << mb->position.y
+                              << ")  pos=(" << pos.q << "," << pos.r << "," << pos.s
+                              << ")  valide=" << pos.estValide() << "\n";
+                    if (pos.estValide()) {
+                        const Case* c = jeu.getPlateau().obtenirCase(pos);
+                        std::cerr << "  case existe=" << (c != nullptr)
+                                  << "  occupee=" << (c && c->estOccupee())
+                                  << "\n";
+                        if (c && c->estOccupee()) {
+                            Piece* p = c->getPiece();
+                            std::cerr << "  piece=" << p->getSymbole()
+                                      << "  joueur=" << p->getJoueur()->getNom()
+                                      << "  tour=" << jeu.getJoueurCourant()->getNom()
+                                      << "\n";
+                        }
                         controleur.gererClicCase(pos);
+                        std::cerr << "  apres: pieceSelectionnee=" << controleur.aPieceSelectionnee() << "\n";
+                    }
                 }
             }
         }
-        window.clear(sf::Color(48,46,43));
-        dessinerCases();
-        dessinerHighlights();
-        dessinerPieces();
-        dessinerInfo();
+
+        clear();
+        drawBoard();
+        drawHighlights();
+        drawCoords();
+        drawPieces();
+        drawInfo();
+        drawBackButton();
         window.display();
     }
-}
-
-// ============================================================
-// Dessin des cases
-// ============================================================
-void VueSFML::dessinerCases() {
-    window.draw(hexFill);
-    for (int m = 0; m < 6; m++)
-        for (auto& losange : matrices[m])
-            window.draw(losange);
-    window.draw(hexBorder);
-}
-
-// ============================================================
-// Surbrillance
-// ============================================================
-void VueSFML::dessinerHighlights() {
-    if (!controleur.aPieceSelectionnee()) return;
-    Position sel = controleur.getPositionSelectionnee();
-
-    auto [ms, is] = caseVersLosange[sel.getLigne()][sel.getColonne()];
-    if (ms < 0) return;
-
-    sf::ConvexShape hl = matrices[ms][is];
-    hl.setFillColor(sf::Color(255,220,40,210));
-    window.draw(hl);
-
-    const Case* ca = jeu.getPlateau().obtenirCase(sel);
-    if (ca && ca->estOccupee()) {
-        auto moves = ca->getPiece()->mouvementsPossibles(jeu.getPlateau());
-        for (const auto& mv : moves) {
-            auto [md, id] = caseVersLosange[mv.getLigne()][mv.getColonne()];
-            if (md < 0) continue;
-            sf::ConvexShape dst = matrices[md][id];
-            dst.setFillColor(sf::Color(50,200,50,170));
-            window.draw(dst);
-        }
-    }
-}
-
-// ============================================================
-// Pieces
-// ============================================================
-void VueSFML::chargerTextures() {
-    if (!textures["WhitePawn"].loadFromFile("image/WhitePawn.png")) std::cout << "Erreur WhitePawn\n";
-    if (!textures["WhiteRook"].loadFromFile("image/WhiteRook.png")) std::cout << "Erreur WhiteRook\n";
-    if (!textures["WhiteKnight"].loadFromFile("image/WhiteKnight.png")) std::cout << "Erreur WhiteKnight\n";
-    if (!textures["WhiteBishop"].loadFromFile("image/WhiteBishop.png")) std::cout << "Erreur WhiteBishop\n";
-    if (!textures["WhiteQueen"].loadFromFile("image/WhiteQueen.png")) std::cout << "Erreur WhiteQueen\n";
-    if (!textures["WhiteKing"].loadFromFile("image/WhiteKing.png")) std::cout << "Erreur WhiteKing\n";
-
-    if (!textures["BlackPawn"].loadFromFile("image/BlackPawn.png")) std::cout << "Erreur BlackPawn\n";
-    if (!textures["BlackRook"].loadFromFile("image/BlackRook.png")) std::cout << "Erreur BlackRook\n";
-    if (!textures["BlackKnight"].loadFromFile("image/BlackKnight.png")) std::cout << "Erreur BlackKnight\n";
-    if (!textures["BlackBishop"].loadFromFile("image/BlackBishop.png")) std::cout << "Erreur BlackBishop\n";
-    if (!textures["BlackQueen"].loadFromFile("image/BlackQueen.png")) std::cout << "Erreur BlackQueen\n";
-    if (!textures["BlackKing"].loadFromFile("image/BlackKing.png")) std::cout << "Erreur BlackKing\n";
-
-    if (!textures["RedPawn"].loadFromFile("image/RedPawn.png")) std::cout << "Erreur RedPawn\n";
-    if (!textures["RedRook"].loadFromFile("image/RedRook.png")) std::cout << "Erreur RedRook\n";
-    if (!textures["RedKnight"].loadFromFile("image/RedKnight.png")) std::cout << "Erreur RedKnight\n";
-    if (!textures["RedBishop"].loadFromFile("image/RedBishop.png")) std::cout << "Erreur RedBishop\n";
-    if (!textures["RedQueen"].loadFromFile("image/RedQueen.png")) std::cout << "Erreur RedQueen\n";
-    if (!textures["RedKing"].loadFromFile("image/RedKing.png")) std::cout << "Erreur RedKing\n";
-}
-void VueSFML::dessinerPieces() {
-    for (int l = 0; l < 12; l++) {
-        for (int c = 0; c < 8; c++) {
-            const Case* ca = jeu.getPlateau().obtenirCase(Position(l, c));
-            if (!ca || !ca->estOccupee()) continue;
-
-            const Piece* p = ca->getPiece();
-            std::string cle = getCleTexture(p);
-            if (cle.empty() || textures.find(cle) == textures.end()) continue;
-
-            auto [m, i] = caseVersLosange[l][c];
-            if (m < 0 || i < 0 || i >= 16) continue;
-
-            sf::Vector2f cpos = centreLosange(matrices[m][i]);
-
-            sf::Sprite sprite(textures[cle]);
-
-            // taille cible
-            float targetW = 42.f;
-            float targetH = 42.f;
-
-            sf::Vector2u texSize = textures[cle].getSize();
-            if (texSize.x == 0 || texSize.y == 0) continue;
-
-            sprite.setScale({
-                targetW / texSize.x,
-                targetH / texSize.y
-            });
-
-            auto bounds = sprite.getGlobalBounds();
-            sprite.setPosition({
-                cpos.x - bounds.size.x * 0.5f,
-                cpos.y - bounds.size.y * 0.5f
-            });
-
-            window.draw(sprite);
-        }
-    }
-}
-// ============================================================
-// Info
-// ============================================================
-void VueSFML::dessinerInfo() {
-    float py = (float)(WIN_H - INFO_H);
-    sf::RectangleShape panel({(float)WIN_W, (float)INFO_H});
-    panel.setPosition({0,py});
-    panel.setFillColor(sf::Color(30,30,30));
-    window.draw(panel);
-
-    Joueur* j = jeu.getJoueurCourant();
-    if (j) {
-        Couleur c = j->getCouleur();
-        sf::Color ct;
-        std::string cn;
-        if      (c==Couleur::BLANC){cn="Blanc";ct=sf::Color(180,200,255);}
-        else if (c==Couleur::ROUGE){cn="Rouge";ct=sf::Color(255,130,130);}
-        else                       {cn="Noir"; ct=sf::Color(130,220,130);}
-        sf::Text t(font,"Tour : "+cn+" ("+j->getNom()+")",17u);
-        t.setFillColor(ct);
-        t.setPosition({12.f,py+10});
-        window.draw(t);
-    }
-    sf::Text t2(font,"Clic: selectionner/deplacer",12u);
-    t2.setFillColor(sf::Color(100,100,100));
-    t2.setPosition({12.f,py+35});
-    window.draw(t2);
-}
-
-// ============================================================
-// Detection clic -> Position modele
-// ============================================================
-Position VueSFML::sourisVersPosition(int mx, int my) const {
-    sf::Vector2f pt((float)mx,(float)my);
-    for (int m = 0; m < 6; m++) {
-        for (int i = 0; i < 16; i++) {
-            if (pointDansLosange(matrices[m][i], pt)) {
-                auto [l,c] = losangeVersCase[m][i];
-                if (l >= 0) return Position(l,c);
-            }
-        }
-    }
-    return Position(-1,-1);
 }

@@ -18,8 +18,8 @@ private:
     std::vector<CommandeCoup*> historiqueCoups; // Tous les coups joués (permet d'annuler)
 
 public:
-    // Crée un jeu avec un plateau de taille lignes x colonnes
-    Jeu(int lignes, int colonnes);
+    // Crée un jeu avec le plateau hexagonal (91 cases)
+    Jeu();
 
     // Place les 16 pièces de chaque joueur sur le plateau dans leur zone de départ
     void initialiserPieces();

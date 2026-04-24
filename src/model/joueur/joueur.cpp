@@ -44,3 +44,7 @@ void Joueur::retirerPiece(Piece* p) {
         }
     }
 }
+
+void Joueur::setElimine(bool val) {
+    estElimine = val;
+}

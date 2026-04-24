@@ -16,14 +16,18 @@ ControleurJeu::ControleurJeu(Jeu* jeu)
 // Méthode principale appelée lors d'un clic utilisateur
 void ControleurJeu::gererClicCase(const Position& position) {
 
-    // Si aucune pièce n'est sélectionnée → on sélectionne
     if (!pieceSelectionnee) {
         selectionnerPiece(position);
-    } 
-    // Sinon → on essaie de déplacer la pièce sélectionnée
-    else {
-        demanderDeplacement(positionSelectionnee, position);
-        pieceSelectionnee = false; // reset sélection
+    } else {
+        // Clic sur une autre pièce du joueur courant → changer la sélection
+        Case* c = jeu->getPlateau().obtenirCase(position);
+        if (c && c->estOccupee() && c->getPiece()->getJoueur() == jeu->getJoueurCourant()) {
+            positionSelectionnee = position;
+            return;
+        }
+        // Tenter le déplacement ; si échec on conserve la sélection
+        bool ok = demanderDeplacement(positionSelectionnee, position);
+        if (ok) pieceSelectionnee = false;
     }
 }
 
@@ -49,35 +53,31 @@ void ControleurJeu::selectionnerPiece(const Position& position) {
     }
 }
 
-// Gère la création et l'exécution d'une commande
-void ControleurJeu::demanderDeplacement(const Position& depart, const Position& arrivee) {
+// Gère la création et l'exécution d'une commande ; retourne true si le coup réussit
+bool ControleurJeu::demanderDeplacement(const Position& depart, const Position& arrivee) {
 
-    if (jeu == nullptr) return;
+    if (jeu == nullptr) return false;
 
-    Case* caseDepart = jeu->getPlateau().obtenirCase(depart);
+    Case* caseDepart  = jeu->getPlateau().obtenirCase(depart);
     Case* caseArrivee = jeu->getPlateau().obtenirCase(arrivee);
 
-    // Vérifie que la case de départ contient une pièce
-    if (caseDepart == nullptr || !caseDepart->estOccupee()) {
-        return;
-    }
+    if (caseDepart == nullptr || !caseDepart->estOccupee()) return false;
 
     Piece* piece = caseDepart->getPiece();
 
     CommandeCoup* commande = nullptr;
-
-    // Si la case d'arrivée est occupée → capture
-    if (caseArrivee != nullptr && caseArrivee->estOccupee()) {
+    if (caseArrivee != nullptr && caseArrivee->estOccupee())
         commande = new CommandeCapture(jeu, piece, depart, arrivee);
-    } 
-    // Sinon → déplacement simple
-    else {
+    else
         commande = new CommandeDeplacement(jeu, piece, depart, arrivee);
-    }
 
-    // Exécution de la commande
     commande->executer();
 
-    // Ajout dans l'historique (important pour undo / IA)
-    jeu->ajouterCommandeHistorique(commande);
+    bool ok = commande->getExecutionReussie();
+    if (ok)
+        jeu->ajouterCommandeHistorique(commande);
+    else
+        delete commande;
+
+    return ok;
 }

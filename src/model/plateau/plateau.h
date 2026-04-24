@@ -1,38 +1,35 @@
 #pragma once
-
 #include <vector>
-#include "case.h"
-#include "../base/position.h"
+#include <map>
+#include "../base/Position.h"
+#include "Case.h"
 
-// Le plateau de jeu : une grille de cases qui stocke toutes les pièces
+class Piece;
+
+// Plateau hexagonal Yalta 3 joueurs — 106 cases en coordonnées cubiques.
 class Plateau {
 private:
-    std::vector<Case> cases;  // Toutes les cases du plateau stockées dans un tableau
-    int nbLignes;             // Nombre de lignes
-    int nbColonnes;           // Nombre de colonnes
+    std::vector<Case>          cases;
+    std::map<Position, size_t> caseIndex;  // accès O(log n)
+
+    void initialiserCases();
+    void initialiserVoisins();
 
 public:
-    // Crée un plateau vide de taille lignes x colonnes
-    Plateau(int lignes, int colonnes);
+    Plateau();
 
-    // Retourne vrai si la position est dans les limites du plateau
-    bool estCaseValide(const Position& p) const;
+    bool caseExiste(const Position& pos) const;
+    bool estCaseValide(const Position& pos) const;
 
-    // Retourne la case à cette position (version modifiable)
-    Case* obtenirCase(const Position& p);
+    Case*       getCase(const Position& pos);
+    const Case* getCase(const Position& pos) const;
+    Case*       obtenirCase(const Position& pos);
+    const Case* obtenirCase(const Position& pos) const;
 
-    // Retourne la case à cette position (version lecture seule)
-    const Case* obtenirCase(const Position& p) const;
+    void placerPiece(const Position& pos, Piece* p);
+    void retirerPiece(const Position& pos);
+    void deplacerPiece(const Position& from, const Position& to);
 
-    // Place une pièce sur la case à la position donnée
-    bool placerPiece(const Position& p, Piece* piece);
-
-    // Déplace la pièce de la case de départ vers la case d'arrivée
-    bool deplacerPiece(const Position& depart, const Position& arrivee);
-
-    // Retourne le nombre de lignes
-    int getNbLignes() const;
-
-    // Retourne le nombre de colonnes
-    int getNbColonnes() const;
+    std::vector<Position> getVoisins(const Position& pos) const;
+    std::vector<Position> getToutesLesPositions() const;
 };

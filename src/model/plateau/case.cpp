@@ -1,39 +1,25 @@
-/**
- * @file case.cpp
- * @brief Implémentation de la classe Case.
- */
 #include "Case.h"
 #include "../piece/Piece.h"
 
-// Constructeur : crée une case vide (piece = nullptr) à la position donnée
-Case::Case(Position pos) : position(pos), piece(nullptr) {}
+Case::Case(const Position& pos) : position(pos), piece(nullptr) {}
 
-// Retourne vrai si une pièce est posée sur cette case
-bool Case::estOccupee() const {
-    return piece != nullptr;
+const Position& Case::getPosition() const { return position; }
+
+Piece* Case::getPiece()    const { return piece; }
+Piece* Case::obtenirPiece() const { return piece; }
+
+void Case::setPiece(Piece* p)    { piece = p; }
+void Case::placerPiece(Piece* p) { piece = p; if (p) p->setPosition(this->position); }
+void Case::vider()               { piece = nullptr; }
+
+bool Case::estOccupee() const { return piece != nullptr; }
+
+bool Case::contientPieceAdverse(Couleur c) const {
+    return piece != nullptr && piece->getCouleur() != c;
 }
 
-// Place une pièce sur cette case
-void Case::placerPiece(Piece* p) {
-    piece = p;
+void Case::ajouterVoisin(const Position& pos) {
+    voisins.push_back(pos);
 }
 
-// Vide la case en retirant la pièce
-void Case::vider() {
-    piece = nullptr;
-}
-
-// Retourne la pièce présente sur la case (ou nullptr si vide)
-Piece* Case::getPiece() const {
-    return piece;
-}
-
-// Retourne la position de cette case sur le plateau
-Position Case::getPosition() const {
-    return position;
-}
-
-// Vérifie si la case contient une pièce adverse (couleur différente de celle passée en paramètre)
-bool Case::contientPieceAdverse(Couleur couleur) const {
-    return piece != nullptr && piece->getCouleur() != couleur;
-}
+const std::vector<Position>& Case::getVoisins() const { return voisins; }
