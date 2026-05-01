@@ -1,83 +1,139 @@
 /**
  * @file controleurjeu.cpp
- * @brief Implémentation de la classe ControleurJeu.
+ * @brief Contrôleur MVC : traduit les clics en commandes (Deplacement, Capture, Roque).
  */
 #include "controleurjeu.h"
 #include "../model/plateau/case.h"
 #include "../model/piece/piece.h"
+#include "../model/piece/Roi.h"
+#include "../model/piece/Tour.h"
 #include "../command/commandedeplacement.h"
 #include "../command/commandecapture.h"
+#include "../command/commanderoque.h"
+#include "../model/base/coord2d.h"
 
-// Constructeur : initialise le contrôleur
 ControleurJeu::ControleurJeu(Jeu* jeu)
     : jeu(jeu), positionSelectionnee(Position(-1, -1)), pieceSelectionnee(false) {
 }
 
-// Méthode principale appelée lors d'un clic utilisateur
-void ControleurJeu::gererClicCase(const Position& position) {
+// ── Gestion du clic ──────────────────────────────────────────────────────────
 
+void ControleurJeu::gererClicCase(const Position& position) {
     if (!pieceSelectionnee) {
         selectionnerPiece(position);
-    } else {
-        // Clic sur une autre pièce du joueur courant → changer la sélection
-        Case* c = jeu->getPlateau().obtenirCase(position);
-        if (c && c->estOccupee() && c->getPiece()->getJoueur() == jeu->getJoueurCourant()) {
-            positionSelectionnee = position;
-            return;
-        }
-        // Tenter le déplacement ; si échec on conserve la sélection
-        bool ok = demanderDeplacement(positionSelectionnee, position);
-        if (ok) pieceSelectionnee = false;
-    }
-}
-
-// Permet de sélectionner une pièce
-void ControleurJeu::selectionnerPiece(const Position& position) {
-
-    if (jeu == nullptr) return;
-
-    // Récupère la case cliquée
-    Case* c = jeu->getPlateau().obtenirCase(position);
-
-    // Vérifie que la case est valide et contient une pièce
-    if (c == nullptr || !c->estOccupee()) {
         return;
     }
 
-    Piece* piece = c->getPiece();
+    Case* cCible = jeu->getPlateau().obtenirCase(position);
+    Case* cSel   = jeu->getPlateau().obtenirCase(positionSelectionnee);
+    Piece* sel   = (cSel && cSel->estOccupee()) ? cSel->getPiece() : nullptr;
 
-    // Vérifie que la pièce appartient au joueur courant
-    if (piece->getJoueur() == jeu->getJoueurCourant()) {
+    // Clic sur une pièce du joueur courant
+    if (cCible && cCible->estOccupee() &&
+        cCible->getPiece()->getJoueur() == jeu->getJoueurCourant()) {
+
+        // Cas spécial : Roi sélectionné + clic sur sa propre Tour → tentative de roque
+        Roi*  roi  = dynamic_cast<Roi*>(sel);
+        Tour* tour = dynamic_cast<Tour*>(cCible->getPiece());
+        if (roi && tour) {
+            if (tenterRoque(roi, tour))
+                pieceSelectionnee = false;
+            return;
+        }
+
+        // Sinon : changer de sélection
         positionSelectionnee = position;
-        pieceSelectionnee = true;
+        return;
+    }
+
+    // Déplacement normal ou capture
+    bool ok = demanderDeplacement(positionSelectionnee, position);
+    if (ok) pieceSelectionnee = false;
+}
+
+void ControleurJeu::selectionnerPiece(const Position& position) {
+    if (!jeu) return;
+    Case* c = jeu->getPlateau().obtenirCase(position);
+    if (!c || !c->estOccupee()) return;
+    if (c->getPiece()->getJoueur() == jeu->getJoueurCourant()) {
+        positionSelectionnee = position;
+        pieceSelectionnee    = true;
     }
 }
 
-// Gère la création et l'exécution d'une commande ; retourne true si le coup réussit
+// ── Déplacement / Capture ────────────────────────────────────────────────────
+
 bool ControleurJeu::demanderDeplacement(const Position& depart, const Position& arrivee) {
+    if (!jeu) return false;
 
-    if (jeu == nullptr) return false;
+    Case* cDepart  = jeu->getPlateau().obtenirCase(depart);
+    Case* cArrivee = jeu->getPlateau().obtenirCase(arrivee);
+    if (!cDepart || !cDepart->estOccupee()) return false;
 
-    Case* caseDepart  = jeu->getPlateau().obtenirCase(depart);
-    Case* caseArrivee = jeu->getPlateau().obtenirCase(arrivee);
-
-    if (caseDepart == nullptr || !caseDepart->estOccupee()) return false;
-
-    Piece* piece = caseDepart->getPiece();
+    Piece* piece = cDepart->getPiece();
 
     CommandeCoup* commande = nullptr;
-    if (caseArrivee != nullptr && caseArrivee->estOccupee())
+    if (cArrivee && cArrivee->estOccupee())
         commande = new CommandeCapture(jeu, piece, depart, arrivee);
     else
         commande = new CommandeDeplacement(jeu, piece, depart, arrivee);
 
     commande->executer();
-
     bool ok = commande->getExecutionReussie();
+
     if (ok)
         jeu->ajouterCommandeHistorique(commande);
     else
         delete commande;
 
     return ok;
+}
+
+// ── Roque ────────────────────────────────────────────────────────────────────
+
+bool ControleurJeu::tenterRoque(Roi* roi, Tour* tour) {
+    if (!CommandeRoque::peutRoquer(*jeu, roi, tour)) return false;
+
+    auto [posRoiArr, posTourArr] = calculerPositionsRoque(roi, tour);
+    if (!posRoiArr.estValide() || !posTourArr.estValide()) return false;
+
+    CommandeRoque* cmd = new CommandeRoque(jeu, roi, tour, posRoiArr, posTourArr);
+    cmd->executer();
+
+    if (cmd->getExecutionReussie()) {
+        jeu->ajouterCommandeHistorique(cmd);
+        jeu->changerJoueur();
+        return true;
+    }
+    delete cmd;
+    return false;
+}
+
+std::pair<Position, Position>
+ControleurJeu::calculerPositionsRoque(Roi* roi, Tour* tour) {
+    auto [xR, yR] = positionTo2D(roi->getPosition());
+    auto [xT, yT] = positionTo2D(tour->getPosition());
+
+    Position posRoiArrivee  = INVALID_POS();
+    Position posTourArrivee = INVALID_POS();
+
+    if (xR == xT) {
+        if (yT > yR) {
+            posRoiArrivee  = positionFrom2D(xR, yR + 2);
+            posTourArrivee = positionFrom2D(xR, yR + 1);
+        } else {
+            posRoiArrivee  = positionFrom2D(xR, yR - 2);
+            posTourArrivee = positionFrom2D(xR, yR - 1);
+        }
+    } else if (yR == yT) {
+        if (xT > xR) {
+            posRoiArrivee  = positionFrom2D(xR + 2, yR);
+            posTourArrivee = positionFrom2D(xR + 1, yR);
+        } else {
+            posRoiArrivee  = positionFrom2D(xR - 2, yR);
+            posTourArrivee = positionFrom2D(xR - 1, yR);
+        }
+    }
+
+    return { posRoiArrivee, posTourArrivee };
 }

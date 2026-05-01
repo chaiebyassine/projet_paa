@@ -53,6 +53,7 @@ bool Jeu::deplacerPiece(const Position& depart, const Position& arrivee) {
     }
 
     plateau.deplacerPiece(depart, arrivee);
+    piece->setPosition(arrivee);  // synchronise piece->position avec sa case réelle
     piece->setADejaBouge(true);
     changerJoueur();
 

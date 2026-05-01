@@ -23,6 +23,8 @@ SRC = main.cpp \
       src/model/jeu.cpp \
       src/command/commandedeplacement.cpp \
       src/command/commandecapture.cpp \
+      src/command/commanderoque.cpp \
+      src/command/commandepromotion.cpp \
       src/controller/controleurjeu.cpp \
       src/view/vueSFML.cpp
 
