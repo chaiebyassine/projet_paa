@@ -5,10 +5,13 @@
 #include "etatpartie.h"
 #include "joueur/Joueur.h"
 #include "base/position.h"
+#include "observateur.h"
 
 class CommandeCoup;
 
 // Classe principale du jeu : gère le plateau, les 3 joueurs, les tours et l'historique des coups
+// Joue le rôle de Sujet dans le patron Observateur : notifie les observateurs à chaque changement
+// d'état (échec, mat, fin de partie, changement de tour).
 class Jeu {
 private:
     Plateau plateau;                            // Le plateau de jeu avec toutes ses cases
@@ -16,6 +19,10 @@ private:
     int indexJoueurCourant;                     // Index (0, 1 ou 2) du joueur dont c'est le tour
     EtatPartie etatPartie;                      // État actuel : en cours, échec, mat, etc.
     std::vector<CommandeCoup*> historiqueCoups; // Tous les coups joués (permet d'annuler)
+    std::vector<Observateur*> observateurs;     // Liste des observateurs inscrits (patron Observateur)
+
+    // Met à jour etatPartie après un coup et détecte les éliminations
+    void verifierEtatApresMove();
 
 public:
     // Crée un jeu avec le plateau hexagonal (91 cases)
@@ -60,4 +67,17 @@ public:
 
     // Remet la partie à zéro et place les pièces
     void demarrerPartie();
+
+    // ── Patron Observateur ──────────────────────────────────────
+    // Inscrit un observateur : il recevra mettreAJour() à chaque changement d'état
+    void ajouterObservateur(Observateur* o);
+
+    // Retire un observateur de la liste (il ne sera plus notifié)
+    void retirerObservateur(Observateur* o);
+
+    // Notifie tous les observateurs inscrits (appelé après chaque coup)
+    void notifierObservateurs();
+
+    // Retourne la liste de tous les joueurs (pour que les observateurs lisent leur état)
+    const std::vector<Joueur*>& getJoueurs() const;
 };

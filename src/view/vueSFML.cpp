@@ -30,6 +30,9 @@ VueSFML::VueSFML(Jeu& jeu)
     buildBoard();
     buildMapping();
 
+    // S'enregistre comme observateur : Jeu appellera mettreAJour() après chaque coup
+    jeu.ajouterObservateur(this);
+
     sf::Color beige(0xEE, 0xCF, 0xA1);
     backButton.setSize({100.f, 40.f});
     backButton.setPosition({float(WIN_W) - 115.f, 5.f});
@@ -355,10 +358,17 @@ void VueSFML::drawInfo() {
         t.setPosition({16.f, py + 8.f});
         window.draw(t);
     }
-    sf::Text hint(font, "Clic gauche : selectionner / deplacer", 12u);
-    hint.setFillColor(sf::Color(95, 85, 65));
-    hint.setPosition({16.f, py + 38.f});
-    window.draw(hint);
+    if (!alerteMessage.empty()) {
+        sf::Text alerte(font, alerteMessage, 18u);
+        alerte.setFillColor(sf::Color(230, 60, 60));
+        alerte.setPosition({400.f, py + 8.f});
+        window.draw(alerte);
+    } else {
+        sf::Text hint(font, "Clic gauche : selectionner / deplacer", 12u);
+        hint.setFillColor(sf::Color(95, 85, 65));
+        hint.setPosition({16.f, py + 38.f});
+        window.draw(hint);
+    }
 }
 
 void VueSFML::drawBackButton() {
@@ -512,6 +522,46 @@ sf::Text VueSFML::createText(const std::string& s, sf::Vector2f pos,
     t.setFillColor(col);
     t.setPosition(pos);
     return t;
+}
+
+// ── Patron Observateur ───────────────────────────────────────
+// Appelé par Jeu::notifierObservateurs() après chaque coup.
+// Construit le message d'alerte selon l'état courant de la partie.
+void VueSFML::mettreAJour() {
+    alerteMessage = "";
+    EtatPartie etat = jeu.getEtatPartie();
+
+    if (etat == EtatPartie::TERMINEE) {
+        // Trouver le joueur non éliminé = gagnant
+        for (Joueur* j : jeu.getJoueurs()) {
+            if (!j->getEstElimine()) {
+                alerteMessage = "Partie terminee — Gagnant : " + j->getNom();
+                break;
+            }
+        }
+        return;
+    }
+
+    if (etat == EtatPartie::MAT) {
+        // Identifier le joueur qui vient d'être éliminé
+        for (Joueur* j : jeu.getJoueurs()) {
+            if (j->getEstElimine()) {
+                alerteMessage = "MAT ! " + j->getNom() + " est elimine.";
+                break;
+            }
+        }
+        return;
+    }
+
+    if (etat == EtatPartie::ECHEC) {
+        // Identifier quel(s) roi(s) sont menacés
+        for (Joueur* j : jeu.getJoueurs()) {
+            if (!j->getEstElimine() && jeu.estEnEchec(j)) {
+                if (!alerteMessage.empty()) alerteMessage += "  |  ";
+                alerteMessage += "ECHEC ! " + j->getNom();
+            }
+        }
+    }
 }
 
 // ── Boucle principale ────────────────────────────────────────

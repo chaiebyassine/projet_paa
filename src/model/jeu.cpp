@@ -8,6 +8,7 @@
 #include "piece/Fou.h"
 #include "piece/Reine.h"
 #include "joueur/Joueur.h"
+#include <algorithm>
 
 Jeu::Jeu() : plateau(), indexJoueurCourant(0), etatPartie(EtatPartie::EN_COURS) {}
 
@@ -54,7 +55,34 @@ bool Jeu::deplacerPiece(const Position& depart, const Position& arrivee) {
     plateau.deplacerPiece(depart, arrivee);
     piece->setADejaBouge(true);
     changerJoueur();
+
+    verifierEtatApresMove();
+    notifierObservateurs();
     return true;
+}
+
+// Analyse l'état de la partie après un coup :
+// - détecte les joueurs en échec ou mat
+// - élimine les joueurs matés
+// - termine la partie s'il ne reste qu'un joueur actif
+void Jeu::verifierEtatApresMove() {
+    etatPartie = EtatPartie::EN_COURS;
+
+    for (Joueur* j : joueurs) {
+        if (j->getEstElimine()) continue;
+        if (estMat(j)) {
+            j->setElimine(true);
+            etatPartie = EtatPartie::MAT;
+        } else if (estEnEchec(j)) {
+            etatPartie = EtatPartie::ECHEC;
+        }
+    }
+
+    int nbActifs = 0;
+    for (Joueur* j : joueurs)
+        if (!j->getEstElimine()) nbActifs++;
+    if (nbActifs <= 1)
+        etatPartie = EtatPartie::TERMINEE;
 }
 
 void Jeu::demarrerPartie() {
@@ -179,4 +207,25 @@ void Jeu::ajouterCommandeHistorique(CommandeCoup* commande) {
 }
 const std::vector<CommandeCoup*>& Jeu::getHistoriqueCoups() const {
     return historiqueCoups;
+}
+
+// ── Patron Observateur ──────────────────────────────────────────
+
+void Jeu::ajouterObservateur(Observateur* o) {
+    observateurs.push_back(o);
+}
+
+void Jeu::retirerObservateur(Observateur* o) {
+    observateurs.erase(
+        std::remove(observateurs.begin(), observateurs.end(), o),
+        observateurs.end());
+}
+
+void Jeu::notifierObservateurs() {
+    for (Observateur* o : observateurs)
+        o->mettreAJour();
+}
+
+const std::vector<Joueur*>& Jeu::getJoueurs() const {
+    return joueurs;
 }

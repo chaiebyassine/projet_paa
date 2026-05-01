@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "../model/jeu.h"
+#include "../model/observateur.h"
 #include "../model/base/position.h"
 #include "../controller/controleurjeu.h"
 #include "../model/piece/piece.h"
@@ -16,7 +17,9 @@
 // Affichage : grand hexagone divisé en 6 matrices triangulaires,
 // chaque matrice subdivisée en 16 losanges (= 96 cases au total).
 // Indices de cases : lettres a–l et chiffres 1–12 autour du bord.
-class VueSFML {
+// Implémente Observateur : s'enregistre auprès du Jeu à la construction
+// et met à jour le panneau d'alerte à chaque notification.
+class VueSFML : public Observateur {
 public:
     static constexpr unsigned WIN_W  = 1200u;
     static constexpr unsigned WIN_H  = 1070u;
@@ -24,6 +27,9 @@ public:
 
     explicit VueSFML(Jeu& jeu);
     void run();
+
+    // Patron Observateur : appelé automatiquement par Jeu après chaque coup
+    void mettreAJour() override;
 
 private:
     Jeu&             jeu;
@@ -55,6 +61,9 @@ private:
     sf::Text           textEchec;
     sf::RectangleShape backButton;
     sf::Text           backButtonText;
+
+    // Message d'alerte mis à jour par mettreAJour() (ex: "ECHEC ! — Alice")
+    std::string alerteMessage;
 
     sf::Vector2f boardCenter;
 
