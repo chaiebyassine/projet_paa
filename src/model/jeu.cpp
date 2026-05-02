@@ -8,12 +8,18 @@
 #include "piece/Fou.h"
 #include "piece/Reine.h"
 #include "joueur/Joueur.h"
+#include "joueur/JoueurIA.h"
 #include <algorithm>
 
 Jeu::Jeu() : plateau(), indexJoueurCourant(0), etatPartie(EtatPartie::EN_COURS) {}
 
 void Jeu::ajouterJoueur(Joueur* joueur) {
-    if (joueurs.size() < 3) joueurs.push_back(joueur);
+    if (joueurs.size() < 3) {
+        joueurs.push_back(joueur);
+        // Donner la référence au jeu à l'IA pour qu'elle puisse simuler des coups
+        JoueurIA* ia = dynamic_cast<JoueurIA*>(joueur);
+        if (ia) ia->setJeu(this);
+    }
 }
 
 Plateau& Jeu::getPlateau()             { return plateau; }
@@ -201,6 +207,18 @@ bool Jeu::estMat(Joueur* joueur) {
         }
     }
     return true;
+}
+
+void Jeu::reinitialiser() {
+    historiqueCoups.clear();   // CommandeCoup* non supprimés (gérés par le contrôleur)
+
+    for (const Position& pos : plateau.getToutesLesPositions())
+        if (Case* c = plateau.obtenirCase(pos)) c->vider();
+
+    joueurs.clear();
+    indexJoueurCourant = 0;
+    etatPartie = EtatPartie::EN_COURS;
+    // observateurs conservés intentionnellement
 }
 
 void Jeu::ajouterCommandeHistorique(CommandeCoup* commande) {

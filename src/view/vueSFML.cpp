@@ -2,6 +2,7 @@
 #include "../model/plateau/case.h"
 #include "../model/piece/piece.h"
 #include "../model/joueur/joueur.h"
+#include "../model/joueur/joueurHumain.h"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -9,8 +10,8 @@
 static const float PI_F = 3.14159265359f;
 
 // ── Constructeur ──────────────────────────────────────────────
-VueSFML::VueSFML(Jeu& jeu)
-    : jeu(jeu), controleur(&jeu),
+VueSFML::VueSFML()
+    : jeu(), controleur(&jeu),
       window(sf::VideoMode({WIN_W, WIN_H}),
              "Yalta Chess - 3 joueurs",
              sf::Style::Titlebar | sf::Style::Close),
@@ -18,6 +19,8 @@ VueSFML::VueSFML(Jeu& jeu)
       textEchec(font, sf::String(), 22u),
       backButtonText(font, sf::String(), 20u)
 {
+    ecranActuel = Ecran::MENU;
+    nbJoueurIA  = 0;
     window.setFramerateLimit(60);
 
     if (!font.openFromFile("C:\\Windows\\Fonts\\arial.ttf"))
@@ -30,7 +33,6 @@ VueSFML::VueSFML(Jeu& jeu)
     buildBoard();
     buildMapping();
 
-    // S'enregistre comme observateur : Jeu appellera mettreAJour() après chaque coup
     jeu.ajouterObservateur(this);
 
     sf::Color beige(0xEE, 0xCF, 0xA1);
@@ -42,6 +44,52 @@ VueSFML::VueSFML(Jeu& jeu)
     backButtonText = sf::Text(font, "Accueil", 20u);
     backButtonText.setFillColor(sf::Color::Black);
     backButtonText.setPosition({float(WIN_W) - 110.f, 12.f});
+}
+
+// ── Gestion des parties ──────────────────────────────────────
+void VueSFML::demarrerPartie(int nbIA) {
+    // Signal aux IAs de s'arrêter rapidement (avant le join dans le destructeur)
+    for (auto& jp : joueursGeres)
+        if (auto* ia = dynamic_cast<JoueurIA*>(jp.get()))
+            ia->signalerArret();
+
+    // Supprimer les pièces encore vivantes (les capturées sont déjà perdues)
+    for (auto& jp : joueursGeres) {
+        auto pcs = jp->getPieces();
+        for (Piece* p : pcs) {
+            jp->retirerPiece(p);
+            delete p;
+        }
+    }
+
+    // Détruire les joueurs (le destructeur JoueurIA joint le thread)
+    joueursGeres.clear();
+
+    // Réinitialiser le modèle
+    jeu.reinitialiser();
+
+    // Réinitialiser le contrôleur
+    controleur = ControleurJeu(&jeu);
+
+    // Créer les joueurs selon le nombre d'IA demandé
+    // Ordre : BLANC (Alice), ROUGE (Bob), NOIR (Carol)
+    // Si nbIA == 1 : Carol est IA
+    // Si nbIA == 2 : Bob et Carol sont IA
+    const std::string noms[3]   = {"Alice", "Bob", "Carol"};
+    const Couleur     cols[3]   = {Couleur::BLANC, Couleur::ROUGE, Couleur::NOIR};
+
+    for (int i = 0; i < 3; i++) {
+        bool estIA = (i >= 3 - nbIA);
+        if (estIA)
+            joueursGeres.emplace_back(std::make_unique<JoueurIA>(noms[i], cols[i], 3));
+        else
+            joueursGeres.emplace_back(std::make_unique<JoueurHumain>(noms[i], cols[i]));
+        jeu.ajouterJoueur(joueursGeres.back().get());
+    }
+
+    jeu.demarrerPartie();   // place les pièces
+    alerteMessage = "";
+    ecranActuel   = Ecran::JEU;
 }
 
 // ── Textures des pièces ──────────────────────────────────────
@@ -77,7 +125,6 @@ std::string VueSFML::getCleTexture(const Piece* p) const {
 
 // ── buildBoard — dessine hexagone + 6 matrices × 16 losanges + labels ──
 void VueSFML::buildBoard() {
-    // Grand hexagone (blanc au fond noir)
     std::vector<float> side_lengths = {450, 460, 460, 450, 460, 460};
     std::vector<sf::Vector2f> points;
     float angle = 0;
@@ -99,7 +146,6 @@ void VueSFML::buildBoard() {
     center /= float(points.size());
     boardCenter = center;
 
-    // Hexagone extérieur (bordure noire épaisse)
     std::vector<sf::Vector2f> points2;
     std::vector<float> side_lengths2 = {500, 510, 510, 500, 510, 510};
     points2.push_back(origin + sf::Vector2f(side_lengths2[0], 0));
@@ -120,7 +166,6 @@ void VueSFML::buildBoard() {
     hexagon2.setOutlineColor(sf::Color::Black);
     hexagon2.setOutlineThickness(7.f);
 
-    // Milieux des arêtes
     std::vector<sf::Vector2f> milieux = {
         milieu(points[4], points[3]),
         milieu(points[3], points[2]),
@@ -130,12 +175,10 @@ void VueSFML::buildBoard() {
         milieu(points[1], points[2])
     };
 
-    // Lignes de séparation des 6 matrices (depuis le centre vers chaque milieu)
     lines.clear();
     for (const auto& m : milieux)
         lines.push_back(createLine(center, m, sf::Color::Red));
 
-    // Subdivision en losanges pour chaque matrice
     auto mat1_lines = createMatrixLines(center, milieux[1], milieux[0], points[3], points[4], points[2]);
     auto mat2_lines = createMatrixLines(center, milieux[5], milieux[1], points[2], points[3], points[1]);
     auto mat3_lines = createMatrixLines(center, milieux[0], milieux[4], points[4], points[5], points[3]);
@@ -152,7 +195,6 @@ void VueSFML::buildBoard() {
     matrice5 = createMatrixLosange(center, mat5_lines, points[1], milieux[2], milieux[5], beige, blanc);
     matrice6 = createMatrixLosange(center, mat6_lines, points[0], milieux[3], milieux[2], blanc, beige);
 
-    // Labels autour du plateau (a-h, i-l, 1-12) identiques à projetexp
     std::vector<std::string> lettresBas         = {"a","b","c","d","e","f","g","h"};
     std::vector<std::string> lettresHaut        = {"8","7","6","5","9","10","11","12"};
     std::vector<std::string> chiffresBasGauche  = {"1","2","3","4","5","6","7","8"};
@@ -195,9 +237,6 @@ void VueSFML::buildBoard() {
 }
 
 // ── Mapping Position cubique ↔ (matrice, losange) ─────────────
-// BLANC (mat1+mat2) : s=4-depth, r=-col, q=col+depth-4
-// ROUGE (mat4+mat3) : q=4-depth, s=-col, r=col+depth-4
-// NOIR  (mat5+mat6) : r=4-depth, q=-col, s=col+depth-4
 void VueSFML::buildMapping() {
     posToTile.clear();
     tileToPos.clear();
@@ -208,7 +247,6 @@ void VueSFML::buildMapping() {
         tileToPos[{mat, los}] = p;
     };
 
-    // BLANC — mat1 (col 0..3) + mat2 (col 4..7)
     for (int d = 0; d <= 3; ++d) {
         for (int c = 0; c <= 7; ++c) {
             int s = 4 - d, r = -c, q = c + d - 4;
@@ -218,7 +256,6 @@ void VueSFML::buildMapping() {
                 add(q, r, s, 2, 4*(3 - d) + (c - 4));
         }
     }
-    // ROUGE — mat4 (col 0..3) + mat3 (col 4..7)
     for (int d = 0; d <= 3; ++d) {
         for (int c = 0; c <= 7; ++c) {
             int q = 4 - d, s = -c, r = c + d - 4;
@@ -228,7 +265,6 @@ void VueSFML::buildMapping() {
                 add(q, r, s, 3, 4*(3 - d) + (c - 4));
         }
     }
-    // NOIR — mat5 (col 0..3) + mat6 (col 4..7)
     for (int d = 0; d <= 3; ++d) {
         for (int c = 0; c <= 7; ++c) {
             int r = 4 - d, q = -c, s = c + d - 4;
@@ -376,6 +412,165 @@ void VueSFML::drawBackButton() {
     window.draw(backButtonText);
 }
 
+// ── Menu principal ────────────────────────────────────────────
+void VueSFML::drawMenu() {
+    // Titre
+    {
+        sf::Text t(font, "YALTA CHESS", 72u);
+        t.setFillColor(sf::Color(220, 190, 100));
+        auto b = t.getGlobalBounds();
+        t.setPosition({(WIN_W - b.size.x) / 2.f - b.position.x, 185.f});
+        window.draw(t);
+    }
+    {
+        sf::Text t(font, "Jeu d'echecs a 3 joueurs", 26u);
+        t.setFillColor(sf::Color(170, 160, 140));
+        auto b = t.getGlobalBounds();
+        t.setPosition({(WIN_W - b.size.x) / 2.f - b.position.x, 290.f});
+        window.draw(t);
+    }
+
+    // Séparateur décoratif
+    sf::RectangleShape sep({500.f, 2.f});
+    sep.setFillColor(sf::Color(100, 85, 55));
+    sep.setPosition({(WIN_W - 500.f) / 2.f, 360.f});
+    window.draw(sep);
+
+    // Label
+    {
+        sf::Text t(font, "Nombre de joueurs IA :", 22u);
+        t.setFillColor(sf::Color(200, 195, 180));
+        auto b = t.getGlobalBounds();
+        t.setPosition({(WIN_W - b.size.x) / 2.f - b.position.x, 410.f});
+        window.draw(t);
+    }
+
+    // 3 boutons IA selection
+    const float btnW = 120.f, btnH = 52.f, gap = 24.f;
+    const float totalW = 3.f * btnW + 2.f * gap;
+    const float startX = (WIN_W - totalW) / 2.f;
+    const float btnY   = 465.f;
+    const std::string labels[3] = {"0 IA", "1 IA", "2 IA"};
+
+    for (int i = 0; i < 3; i++) {
+        float bx = startX + i * (btnW + gap);
+        bool sel = (i == nbJoueurIA);
+
+        sf::RectangleShape btn({btnW, btnH});
+        btn.setPosition({bx, btnY});
+        btn.setFillColor(sel ? sf::Color(210, 175, 55) : sf::Color(70, 65, 55));
+        btn.setOutlineColor(sel ? sf::Color(240, 210, 90) : sf::Color(110, 100, 75));
+        btn.setOutlineThickness(2.f);
+        window.draw(btn);
+
+        sf::Text t(font, labels[i], 22u);
+        t.setFillColor(sel ? sf::Color(25, 18, 0) : sf::Color(210, 200, 180));
+        auto b = t.getGlobalBounds();
+        t.setPosition({bx + (btnW - b.size.x) / 2.f - b.position.x,
+                        btnY + (btnH - b.size.y) / 2.f - b.position.y});
+        window.draw(t);
+    }
+
+    // Description du mode sélectionné
+    const std::string descs[3] = {
+        "3 joueurs humains",
+        "2 humains  +  1 IA (Carol / Noir)",
+        "1 humain (Alice / Blanc)  +  2 IA"
+    };
+    {
+        sf::Text t(font, descs[nbJoueurIA], 18u);
+        t.setFillColor(sf::Color(150, 145, 130));
+        auto b = t.getGlobalBounds();
+        t.setPosition({(WIN_W - b.size.x) / 2.f - b.position.x, 535.f});
+        window.draw(t);
+    }
+
+    // Bouton Commencer
+    const float cw = 280.f, ch = 62.f;
+    const float cx = (WIN_W - cw) / 2.f, cy = 600.f;
+    {
+        sf::RectangleShape btn({cw, ch});
+        btn.setPosition({cx, cy});
+        btn.setFillColor(sf::Color(55, 115, 65));
+        btn.setOutlineColor(sf::Color(80, 160, 95));
+        btn.setOutlineThickness(2.f);
+        window.draw(btn);
+
+        sf::Text t(font, "Commencer la partie", 24u);
+        t.setFillColor(sf::Color(225, 255, 225));
+        auto b = t.getGlobalBounds();
+        t.setPosition({cx + (cw - b.size.x) / 2.f - b.position.x,
+                        cy + (ch - b.size.y) / 2.f - b.position.y});
+        window.draw(t);
+    }
+}
+
+// ── Overlay pause ─────────────────────────────────────────────
+void VueSFML::drawPause() {
+    // Fond semi-transparent
+    sf::RectangleShape overlay({float(WIN_W), float(WIN_H)});
+    overlay.setFillColor(sf::Color(0, 0, 0, 175));
+    window.draw(overlay);
+
+    // Boîte centrale
+    const float bw = 380.f, bh = 300.f;
+    const float bx = (WIN_W - bw) / 2.f, by = (WIN_H - bh) / 2.f;
+
+    sf::RectangleShape box({bw, bh});
+    box.setPosition({bx, by});
+    box.setFillColor(sf::Color(32, 29, 25));
+    box.setOutlineColor(sf::Color(145, 120, 70));
+    box.setOutlineThickness(3.f);
+    window.draw(box);
+
+    // Titre PAUSE
+    {
+        sf::Text t(font, "PAUSE", 52u);
+        t.setFillColor(sf::Color(215, 185, 95));
+        auto b = t.getGlobalBounds();
+        t.setPosition({bx + (bw - b.size.x) / 2.f - b.position.x, by + 28.f});
+        window.draw(t);
+    }
+
+    // Boutons
+    const float btnW = 310.f, btnH = 58.f;
+    const float btnX = bx + (bw - btnW) / 2.f;
+    const float continuerY = by + 135.f;
+    const float terminerY  = continuerY + btnH + 18.f;
+
+    // [Continuer]
+    {
+        sf::RectangleShape btn({btnW, btnH});
+        btn.setPosition({btnX, continuerY});
+        btn.setFillColor(sf::Color(50, 110, 60));
+        btn.setOutlineColor(sf::Color(75, 160, 90));
+        btn.setOutlineThickness(2.f);
+        window.draw(btn);
+        sf::Text t(font, "Continuer", 22u);
+        t.setFillColor(sf::Color(215, 255, 215));
+        auto b = t.getGlobalBounds();
+        t.setPosition({btnX + (btnW - b.size.x) / 2.f - b.position.x,
+                        continuerY + (btnH - b.size.y) / 2.f - b.position.y});
+        window.draw(t);
+    }
+
+    // [Terminer la partie]
+    {
+        sf::RectangleShape btn({btnW, btnH});
+        btn.setPosition({btnX, terminerY});
+        btn.setFillColor(sf::Color(115, 45, 45));
+        btn.setOutlineColor(sf::Color(170, 70, 70));
+        btn.setOutlineThickness(2.f);
+        window.draw(btn);
+        sf::Text t(font, "Terminer la partie", 22u);
+        t.setFillColor(sf::Color(255, 215, 215));
+        auto b = t.getGlobalBounds();
+        t.setPosition({btnX + (btnW - b.size.x) / 2.f - b.position.x,
+                        terminerY + (btnH - b.size.y) / 2.f - b.position.y});
+        window.draw(t);
+    }
+}
+
 // ── Hit-test souris ──────────────────────────────────────────
 Position VueSFML::sourisVersPosition(int mx, int my) const {
     sf::Vector2f pt{float(mx), float(my)};
@@ -392,6 +587,67 @@ Position VueSFML::sourisVersPosition(int mx, int my) const {
         }
     }
     return INVALID_POS();
+}
+
+// ── Gestionnaires de clics ────────────────────────────────────
+void VueSFML::handleMenuClick(int x, int y) {
+    sf::Vector2f pt{float(x), float(y)};
+
+    // Boutons de sélection IA
+    const float btnW = 120.f, btnH = 52.f, gap = 24.f;
+    const float totalW = 3.f * btnW + 2.f * gap;
+    const float startX = (WIN_W - totalW) / 2.f;
+    const float btnY   = 465.f;
+
+    for (int i = 0; i < 3; i++) {
+        float bx = startX + i * (btnW + gap);
+        if (sf::FloatRect({bx, btnY}, {btnW, btnH}).contains(pt)) {
+            nbJoueurIA = i;
+            return;
+        }
+    }
+
+    // Bouton Commencer
+    const float cw = 280.f, ch = 62.f;
+    const float cx = (WIN_W - cw) / 2.f, cy = 600.f;
+    if (sf::FloatRect({cx, cy}, {cw, ch}).contains(pt))
+        demarrerPartie(nbJoueurIA);
+}
+
+void VueSFML::handleGameClick(int x, int y) {
+    sf::Vector2f pt{float(x), float(y)};
+
+    // Bouton Accueil → ouvre la pause
+    if (backButton.getGlobalBounds().contains(pt)) {
+        ecranActuel = Ecran::PAUSE;
+        return;
+    }
+
+    Position pos = sourisVersPosition(x, y);
+    if (pos.estValide())
+        controleur.gererClicCase(pos);
+}
+
+void VueSFML::handlePauseClick(int x, int y) {
+    sf::Vector2f pt{float(x), float(y)};
+
+    const float bw = 380.f, bh = 300.f;
+    const float bx = (WIN_W - bw) / 2.f, by = (WIN_H - bh) / 2.f;
+    const float btnW = 310.f, btnH = 58.f;
+    const float btnX = bx + (bw - btnW) / 2.f;
+    const float continuerY = by + 135.f;
+    const float terminerY  = continuerY + btnH + 18.f;
+
+    if (sf::FloatRect({btnX, continuerY}, {btnW, btnH}).contains(pt)) {
+        ecranActuel = Ecran::JEU;
+    } else if (sf::FloatRect({btnX, terminerY}, {btnW, btnH}).contains(pt)) {
+        // Signaler aux IAs de s'arrêter avant de revenir au menu
+        for (auto& jp : joueursGeres)
+            if (auto* ia = dynamic_cast<JoueurIA*>(jp.get()))
+                ia->signalerArret();
+        ecranActuel   = Ecran::MENU;
+        alerteMessage = "";
+    }
 }
 
 // ── Accès matrices / losanges ────────────────────────────────
@@ -435,14 +691,14 @@ bool VueSFML::pointDansLosange(const sf::ConvexShape& s, sf::Vector2f pt) const 
     return inside;
 }
 
-// ── Helpers de construction (adaptés de MakeBoard) ───────────
+// ── Helpers de construction ───────────────────────────────────
 sf::Vector2f VueSFML::milieu(const sf::Vector2f& a, const sf::Vector2f& b) const {
     return (a + b) / 2.f;
 }
 
 std::array<sf::Vertex, 2> VueSFML::createLine(const sf::Vector2f& a,
-                                              const sf::Vector2f& b,
-                                              sf::Color c) const {
+                                               const sf::Vector2f& b,
+                                               sf::Color c) const {
     std::array<sf::Vertex, 2> arr;
     arr[0].position = a; arr[0].color = c;
     arr[1].position = b; arr[1].color = c;
@@ -492,22 +748,18 @@ std::vector<sf::ConvexShape> VueSFML::createMatrixLosange(
     sf::Color c1, sf::Color c2) const
 {
     std::vector<sf::ConvexShape> shapes;
-    // Ligne 0 (près du centre)
     shapes.push_back(createLosange(center, L[0], L[6] + 0.25f*(L[7]-L[6]), L[6], c1, sf::Color::Black));
     shapes.push_back(createLosange(L[0], L[2], L[6] + 0.5f*(L[7]-L[6]), L[6] + 0.25f*(L[7]-L[6]), c2, sf::Color::Black));
     shapes.push_back(createLosange(L[2], L[4], L[6] + 0.75f*(L[7]-L[6]), L[6] + 0.5f*(L[7]-L[6]), c1, sf::Color::Black));
     shapes.push_back(createLosange(L[4], m1, L[7], L[6] + 0.75f*(L[7]-L[6]), c2, sf::Color::Black));
-    // Ligne 1
     shapes.push_back(createLosange(L[6], L[6] + 0.25f*(L[7]-L[6]), L[8] + 0.25f*(L[9]-L[8]), L[8], c2, sf::Color::Black));
     shapes.push_back(createLosange(L[6] + 0.25f*(L[7]-L[6]), L[6] + 0.5f*(L[7]-L[6]), L[8] + 0.5f*(L[9]-L[8]), L[8] + 0.25f*(L[9]-L[8]), c1, sf::Color::Black));
     shapes.push_back(createLosange(L[6] + 0.5f*(L[7]-L[6]), L[6] + 0.75f*(L[7]-L[6]), L[8] + 0.75f*(L[9]-L[8]), L[8] + 0.5f*(L[9]-L[8]), c2, sf::Color::Black));
     shapes.push_back(createLosange(L[6] + 0.75f*(L[7]-L[6]), L[7], L[9], L[8] + 0.75f*(L[9]-L[8]), c1, sf::Color::Black));
-    // Ligne 2
     shapes.push_back(createLosange(L[8], L[8] + 0.25f*(L[9]-L[8]), L[10] + 0.25f*(L[11]-L[10]), L[10], c1, sf::Color::Black));
     shapes.push_back(createLosange(L[8] + 0.25f*(L[9]-L[8]), L[8] + 0.5f*(L[9]-L[8]), L[10] + 0.5f*(L[11]-L[10]), L[10] + 0.25f*(L[11]-L[10]), c2, sf::Color::Black));
     shapes.push_back(createLosange(L[8] + 0.5f*(L[9]-L[8]), L[8] + 0.75f*(L[9]-L[8]), L[10] + 0.75f*(L[11]-L[10]), L[10] + 0.5f*(L[11]-L[10]), c1, sf::Color::Black));
     shapes.push_back(createLosange(L[8] + 0.75f*(L[9]-L[8]), L[9], L[11], L[10] + 0.75f*(L[11]-L[10]), c2, sf::Color::Black));
-    // Ligne 3 (vers l'apex)
     shapes.push_back(createLosange(L[10], L[10] + 0.25f*(L[11]-L[10]), L[1], m2, c2, sf::Color::Black));
     shapes.push_back(createLosange(L[10] + 0.25f*(L[11]-L[10]), L[10] + 0.5f*(L[11]-L[10]), L[3], L[1], c1, sf::Color::Black));
     shapes.push_back(createLosange(L[10] + 0.5f*(L[11]-L[10]), L[10] + 0.75f*(L[11]-L[10]), L[5], L[3], c2, sf::Color::Black));
@@ -516,7 +768,7 @@ std::vector<sf::ConvexShape> VueSFML::createMatrixLosange(
 }
 
 sf::Text VueSFML::createText(const std::string& s, sf::Vector2f pos,
-                              unsigned size, sf::Color col)
+                               unsigned size, sf::Color col)
 {
     sf::Text t(font, s, size);
     t.setFillColor(col);
@@ -524,15 +776,14 @@ sf::Text VueSFML::createText(const std::string& s, sf::Vector2f pos,
     return t;
 }
 
-// ── Patron Observateur ───────────────────────────────────────
-// Appelé par Jeu::notifierObservateurs() après chaque coup.
-// Construit le message d'alerte selon l'état courant de la partie.
+// ── Patron Observateur ────────────────────────────────────────
 void VueSFML::mettreAJour() {
     alerteMessage = "";
+    if (jeu.getJoueurs().empty()) return;
+
     EtatPartie etat = jeu.getEtatPartie();
 
     if (etat == EtatPartie::TERMINEE) {
-        // Trouver le joueur non éliminé = gagnant
         for (Joueur* j : jeu.getJoueurs()) {
             if (!j->getEstElimine()) {
                 alerteMessage = "Partie terminee — Gagnant : " + j->getNom();
@@ -543,7 +794,6 @@ void VueSFML::mettreAJour() {
     }
 
     if (etat == EtatPartie::MAT) {
-        // Identifier le joueur qui vient d'être éliminé
         for (Joueur* j : jeu.getJoueurs()) {
             if (j->getEstElimine()) {
                 alerteMessage = "MAT ! " + j->getNom() + " est elimine.";
@@ -554,7 +804,6 @@ void VueSFML::mettreAJour() {
     }
 
     if (etat == EtatPartie::ECHEC) {
-        // Identifier quel(s) roi(s) sont menacés
         for (Joueur* j : jeu.getJoueurs()) {
             if (!j->getEstElimine() && jeu.estEnEchec(j)) {
                 if (!alerteMessage.empty()) alerteMessage += "  |  ";
@@ -564,44 +813,50 @@ void VueSFML::mettreAJour() {
     }
 }
 
-// ── Boucle principale ────────────────────────────────────────
+// ── Boucle principale ─────────────────────────────────────────
 void VueSFML::run() {
     while (window.isOpen()) {
+
+        // Tour d'un JoueurIA (uniquement en mode JEU, partie en cours)
+        if (ecranActuel == Ecran::JEU) {
+            EtatPartie ep = jeu.getEtatPartie();
+            if (ep == EtatPartie::EN_COURS || ep == EtatPartie::ECHEC) {
+                JoueurIA* ia = dynamic_cast<JoueurIA*>(jeu.getJoueurCourant());
+                if (ia && !ia->estCalculEnCours())
+                    ia->jouer();
+            }
+        }
+
         while (const auto ev = window.pollEvent()) {
-            if (ev->is<sf::Event::Closed>())
+            if (ev->is<sf::Event::Closed>()) {
+                // Signal d'arrêt aux IAs avant fermeture
+                for (auto& jp : joueursGeres)
+                    if (auto* ia = dynamic_cast<JoueurIA*>(jp.get()))
+                        ia->signalerArret();
                 window.close();
+            }
             if (const auto* mb = ev->getIf<sf::Event::MouseButtonPressed>()) {
                 if (mb->button == sf::Mouse::Button::Left) {
-                    Position pos = sourisVersPosition(mb->position.x, mb->position.y);
-                    std::cerr << "[CLICK] pixel=(" << mb->position.x << "," << mb->position.y
-                              << ")  pos=(" << pos.q << "," << pos.r << "," << pos.s
-                              << ")  valide=" << pos.estValide() << "\n";
-                    if (pos.estValide()) {
-                        const Case* c = jeu.getPlateau().obtenirCase(pos);
-                        std::cerr << "  case existe=" << (c != nullptr)
-                                  << "  occupee=" << (c && c->estOccupee())
-                                  << "\n";
-                        if (c && c->estOccupee()) {
-                            Piece* p = c->getPiece();
-                            std::cerr << "  piece=" << p->getSymbole()
-                                      << "  joueur=" << p->getJoueur()->getNom()
-                                      << "  tour=" << jeu.getJoueurCourant()->getNom()
-                                      << "\n";
-                        }
-                        controleur.gererClicCase(pos);
-                        std::cerr << "  apres: pieceSelectionnee=" << controleur.aPieceSelectionnee() << "\n";
-                    }
+                    if      (ecranActuel == Ecran::MENU)  handleMenuClick(mb->position.x, mb->position.y);
+                    else if (ecranActuel == Ecran::JEU)   handleGameClick(mb->position.x, mb->position.y);
+                    else if (ecranActuel == Ecran::PAUSE) handlePauseClick(mb->position.x, mb->position.y);
                 }
             }
         }
 
         clear();
-        drawBoard();
-        drawHighlights();
-        drawCoords();
-        drawPieces();
-        drawInfo();
-        drawBackButton();
+        if (ecranActuel == Ecran::MENU) {
+            drawMenu();
+        } else {
+            drawBoard();
+            drawHighlights();
+            drawCoords();
+            drawPieces();
+            drawInfo();
+            drawBackButton();
+            if (ecranActuel == Ecran::PAUSE)
+                drawPause();
+        }
         window.display();
     }
 }

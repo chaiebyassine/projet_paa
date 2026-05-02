@@ -68,6 +68,10 @@ public:
     // Remet la partie à zéro et place les pièces
     void demarrerPartie();
 
+    // Réinitialise le jeu (vide le plateau, efface les joueurs et l'historique)
+    // Les observateurs restent enregistrés. Les pièces ne sont PAS libérées ici.
+    void reinitialiser();
+
     // ── Patron Observateur ──────────────────────────────────────
     // Inscrit un observateur : il recevra mettreAJour() à chaque changement d'état
     void ajouterObservateur(Observateur* o);

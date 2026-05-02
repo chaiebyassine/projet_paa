@@ -5,10 +5,13 @@
 #include <vector>
 #include <array>
 #include <map>
+#include <memory>
 #include <utility>
 
 #include "../model/jeu.h"
 #include "../model/observateur.h"
+#include "../model/joueur/JoueurIA.h"
+#include "../model/joueur/Joueur.h"
 #include "../model/base/position.h"
 #include "../controller/controleurjeu.h"
 #include "../model/piece/piece.h"
@@ -16,26 +19,32 @@
 // Vue SFML — plateau Yalta 3 joueurs.
 // Affichage : grand hexagone divisé en 6 matrices triangulaires,
 // chaque matrice subdivisée en 16 losanges (= 96 cases au total).
-// Indices de cases : lettres a–l et chiffres 1–12 autour du bord.
 // Implémente Observateur : s'enregistre auprès du Jeu à la construction
 // et met à jour le panneau d'alerte à chaque notification.
+// Contient son propre Jeu (valeur, pas référence) et gère les joueurs.
 class VueSFML : public Observateur {
 public:
+    enum class Ecran { MENU, JEU, PAUSE };
+
     static constexpr unsigned WIN_W  = 1200u;
     static constexpr unsigned WIN_H  = 1070u;
     static constexpr unsigned INFO_H = 70u;
 
-    explicit VueSFML(Jeu& jeu);
+    VueSFML();
     void run();
 
     // Patron Observateur : appelé automatiquement par Jeu après chaque coup
     void mettreAJour() override;
 
 private:
-    Jeu&             jeu;
-    ControleurJeu    controleur;
+    Jeu           jeu;        // valeur — adresse stable pour le contrôleur
+    ControleurJeu controleur;
     sf::RenderWindow window;
     sf::Font         font;
+
+    Ecran ecranActuel;
+    int   nbJoueurIA;
+    std::vector<std::unique_ptr<Joueur>> joueursGeres;
 
     // 6 matrices de 16 losanges = 96 cases
     std::vector<sf::ConvexShape> matrice1, matrice2, matrice3,
@@ -71,6 +80,7 @@ private:
     void buildBoard();
     void buildMapping();
     void chargerTextures();
+    void demarrerPartie(int nbIA);
 
     // ── Rendu ─────────────────────────────────────────────────
     void clear();
@@ -80,10 +90,15 @@ private:
     void drawCoords();
     void drawInfo();
     void drawBackButton();
+    void drawMenu();
+    void drawPause();
 
     // ── Interaction ───────────────────────────────────────────
     Position sourisVersPosition(int mx, int my) const;
     std::string getCleTexture(const Piece* p) const;
+    void handleMenuClick(int x, int y);
+    void handleGameClick(int x, int y);
+    void handlePauseClick(int x, int y);
 
     // ── Helpers géométriques (adaptés de MakeBoard de projetexp) ─
     std::vector<sf::ConvexShape>& getMatrice(int mat);
