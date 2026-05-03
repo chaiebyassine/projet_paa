@@ -22,6 +22,7 @@
 #include "../piece/Roi.h"
 #include <iostream>
 #include <algorithm>
+#include <numeric>
 
 // ── Constructeur / Destructeur ────────────────────────────────────────────────
 
@@ -92,12 +93,34 @@ void JoueurIA::annulerCoup(const Coup& c, Plateau& plateau) {
     }
 }
 
-// ── Fonction d'évaluation ─────────────────────────────────────────────────────
+// ── Hachage de position ───────────────────────────────────────────────────────
 
 /**
- * Évaluation paranoïaque : matériel propre - matériel ennemi + bonus de mobilité.
- * Retourne un score du point de vue de cette IA (plus c'est grand, mieux c'est).
+ * Encode l'état du plateau en une chaîne déterministe.
+ * Les cases sont parcourues dans un ordre fixe (map triée), donc le hash est stable.
  */
+std::string JoueurIA::hashPlateau(const Plateau& p) const {
+    std::string h;
+    h.reserve(512);
+    for (const Position& pos : p.getToutesLesPositions()) {
+        const Case* c = p.obtenirCase(pos);
+        if (!c || !c->estOccupee()) continue;
+        const Piece* piece = c->getPiece();
+        h += std::to_string(pos.q); h += ',';
+        h += std::to_string(pos.r); h += ',';
+        h += std::to_string(pos.s); h += ':';
+        h += piece->getSymbole();   h += ':';
+        h += std::to_string((int)piece->getCouleur()); h += ';';
+    }
+    return h;
+}
+
+void JoueurIA::enregistrerPosition(const Plateau& p) {
+    historiquePartie[hashPlateau(p)]++;
+}
+
+// ── Fonction d'évaluation ─────────────────────────────────────────────────────
+
 int JoueurIA::evaluerPosition(Plateau& plateau) const {
     int score = 0;
 
@@ -111,6 +134,12 @@ int JoueurIA::evaluerPosition(Plateau& plateau) const {
         else
             score -= val;
     }
+
+    // Pénalité pour répétition dans la partie réelle (évite l'oscillation)
+    auto it = historiquePartie.find(hashPlateau(plateau));
+    if (it != historiquePartie.end() && it->second > 0)
+        score -= it->second * 250;
+
     return score;
 }
 
@@ -122,16 +151,19 @@ int JoueurIA::evaluatePosition() {
 // ── Alpha-Beta paranoïaque ────────────────────────────────────────────────────
 
 /**
- * Alpha-beta standard adapté pour N joueurs (approche paranoïaque) :
- *   - nœud MAX si c'est le tour de l'IA (couleur == this->couleur)
- *   - nœud MIN pour tous les autres joueurs
- *
- * @param indexCourant  index du joueur qui doit jouer à ce nœud
+ * Alpha-beta paranoïaque + détection de répétition dans l'arbre.
+ * @param chemin  hachages des positions déjà visitées sur ce chemin
  */
 int JoueurIA::alphaBeta(Plateau& plateau, int profondeur, int alpha, int beta,
-                         int indexCourant, const std::vector<Joueur*>& joueurs) {
-    // Arrêt anticipé (destruction de l'objet ou fermeture de la fenêtre)
+                         int indexCourant, const std::vector<Joueur*>& joueurs,
+                         std::vector<std::string>& chemin) {
     if (arret.load()) return evaluerPosition(plateau);
+
+    // Répétition de position dans l'arbre de recherche → pénalité immédiate
+    std::string posHash = hashPlateau(plateau);
+    int repsArbre = (int)std::count(chemin.begin(), chemin.end(), posHash);
+    if (repsArbre >= 2)
+        return -400;   // toujours mauvais de tourner en rond
 
     if (profondeur == 0)
         return evaluerPosition(plateau);
@@ -149,8 +181,11 @@ int JoueurIA::alphaBeta(Plateau& plateau, int profondeur, int alpha, int beta,
         if (arret.load()) break;
 
         appliquerCoup(coup, plateau);
+        std::string nextHash = hashPlateau(plateau);
+        chemin.push_back(nextHash);
         int score = alphaBeta(plateau, profondeur - 1, alpha, beta,
-                              indexCourant + 1, joueurs);
+                              indexCourant + 1, joueurs, chemin);
+        chemin.pop_back();
         annulerCoup(coup, plateau);
 
         if (estMax) {
@@ -160,7 +195,7 @@ int JoueurIA::alphaBeta(Plateau& plateau, int profondeur, int alpha, int beta,
             meilleur = std::min(meilleur, score);
             beta     = std::min(beta,     meilleur);
         }
-        if (beta <= alpha) break;   // coupure alpha-beta
+        if (beta <= alpha) break;
     }
     return meilleur;
 }
@@ -201,14 +236,15 @@ void JoueurIA::threadJouer() {
 
             int score;
             {
-                // Section critique : un seul thread à la fois sur le plateau
                 std::lock_guard<std::mutex> lock(boardMutex);
                 appliquerCoup(coups[idx], plateau);
+                // Initialiser le chemin avec la position résultant de ce coup
+                std::vector<std::string> chemin = { hashPlateau(plateau) };
                 score = alphaBeta(plateau,
                                   profondeurRecherche - 1,
                                   INT_MIN + 1, INT_MAX - 1,
                                   (monIndex + 1) % (int)joueurs.size(),
-                                  joueurs);
+                                  joueurs, chemin);
                 annulerCoup(coups[idx], plateau);
             }
 

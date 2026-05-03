@@ -63,6 +63,12 @@ bool Jeu::deplacerPiece(const Position& depart, const Position& arrivee) {
     piece->setADejaBouge(true);
     changerJoueur();
 
+    // Enregistrer la position résultante dans l'historique de chaque IA
+    for (Joueur* j : joueurs) {
+        if (JoueurIA* ia = dynamic_cast<JoueurIA*>(j))
+            ia->enregistrerPosition(plateau);
+    }
+
     verifierEtatApresMove();
     notifierObservateurs();
     return true;

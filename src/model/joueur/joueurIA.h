@@ -7,6 +7,8 @@
 #include <atomic>
 #include <vector>
 #include <climits>
+#include <string>
+#include <unordered_map>
 
 class Jeu;
 class Plateau;
@@ -43,36 +45,38 @@ private:
     std::atomic<bool> arret;               ///< signal d'arrêt anticipé (ex: fermeture)
 
     // ── Outils de simulation ──────────────────────────────────────────────
-    /** Génère tous les coups pseudo-légaux pour un joueur */
     std::vector<Coup> genererCoups(Joueur* j, Plateau& p) const;
-
-    /** Applique un coup sur le plateau (make) */
     void appliquerCoup(Coup& c, Plateau& p);
-
-    /** Annule un coup précédemment appliqué (unmake) */
     void annulerCoup(const Coup& c, Plateau& p);
 
+    // ── Hachage de position ───────────────────────────────────────────────
+    /** Encode l'état du plateau en chaîne déterministe (pour détecter les répétitions) */
+    std::string hashPlateau(const Plateau& p) const;
+
+    /** Positions réelles jouées : hash → nombre d'apparitions */
+    std::unordered_map<std::string, int> historiquePartie;
+
     // ── Évaluation ───────────────────────────────────────────────────────
-    /** Heuristique : matériel + mobilité, du point de vue de cette IA */
     int evaluerPosition(Plateau& p) const;
 
     // ── Recherche alpha-beta ──────────────────────────────────────────────
     /**
-     * @brief Alpha-beta paranoïaque pour N joueurs.
-     * @param indexCourant index dans joueurs[] du joueur qui doit jouer
+     * @param chemin  hachages des positions sur le chemin courant (détection répétition)
      */
     int alphaBeta(Plateau& p, int profondeur, int alpha, int beta,
-                  int indexCourant, const std::vector<Joueur*>& joueurs);
+                  int indexCourant, const std::vector<Joueur*>& joueurs,
+                  std::vector<std::string>& chemin);
 
-    /** Corps du thread : calcule puis applique le meilleur coup */
     void threadJouer();
 
 public:
     JoueurIA(const std::string& nom, Couleur couleur, int profondeur);
     ~JoueurIA();
 
-    /** Fournit la référence au jeu (appelé par Jeu::ajouterJoueur) */
     void setJeu(Jeu* j) { jeu = j; }
+
+    /** Enregistre la position courante du plateau dans l'historique de la partie */
+    void enregistrerPosition(const Plateau& p);
 
     /** Vrai si le calcul est en cours */
     bool estCalculEnCours() const { return calcEnCours.load(); }
