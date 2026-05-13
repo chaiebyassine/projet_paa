@@ -129,16 +129,23 @@ int JoueurIA::evaluerPosition(Plateau& plateau) const {
         if (!c || !c->estOccupee()) continue;
         const Piece* p = c->getPiece();
         int val = valeurPiece(p);
-        if (p->getCouleur() == this->couleur)
-            score += val;
-        else
-            score -= val;
+
+        // Bonus positionnel : distance hexagonale depuis le centre (0,0,0)
+        // dist = (|q|+|r|+|s|)/2.  Départ ≈ dist 4.  Plus proche = mieux.
+        int dist     = (std::abs(pos.q) + std::abs(pos.r) + std::abs(pos.s)) / 2;
+        int posBonus = std::max(0, 4 - dist) * 20;   // +20 par niveau d'avance
+
+        if (p->getCouleur() == this->couleur) {
+            score += val + posBonus;            // avancer nos pièces = bonus
+        } else {
+            score -= val + (posBonus / 2);      // pénaliser les ennemis avancés
+        }
     }
 
-    // Pénalité pour répétition dans la partie réelle (évite l'oscillation)
+    // Forte pénalité pour toute position déjà vue dans la vraie partie
     auto it = historiquePartie.find(hashPlateau(plateau));
     if (it != historiquePartie.end() && it->second > 0)
-        score -= it->second * 250;
+        score -= it->second * 1000;
 
     return score;
 }
@@ -159,11 +166,13 @@ int JoueurIA::alphaBeta(Plateau& plateau, int profondeur, int alpha, int beta,
                          std::vector<std::string>& chemin) {
     if (arret.load()) return evaluerPosition(plateau);
 
-    // Répétition de position dans l'arbre de recherche → pénalité immédiate
+    // Répétition dans l'arbre de recherche → pénalité relative au score réel
+    // IMPORTANT : evaluerPosition ≈ -13940 en début de partie.
+    // Retourner -400 serait MEILLEUR pour MAX → il faut rester sous evaluerPosition.
     std::string posHash = hashPlateau(plateau);
     int repsArbre = (int)std::count(chemin.begin(), chemin.end(), posHash);
-    if (repsArbre >= 2)
-        return -400;   // toujours mauvais de tourner en rond
+    if (repsArbre >= 1)
+        return evaluerPosition(plateau) - 600;   // pire que la position sans répétition
 
     if (profondeur == 0)
         return evaluerPosition(plateau);
